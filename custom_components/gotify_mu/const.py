@@ -16,6 +16,14 @@ CONF_DEFAULT_PRIORITY = "default_priority"
 CONF_INBOUND_ENABLED = "inbound_enabled"
 CONF_REMOVE_CLIENT_TOKEN = "remove_client_token"
 
+CONF_NATIVE_INTEGRATION_ID = "native_integration_id"
+CONF_NATIVE_SECRET = "native_secret"
+CONF_NATIVE_EVENT_PATH = "native_event_path"
+CONF_NATIVE_WEBHOOK_ID = "native_webhook_id"
+CONF_NATIVE_WEBHOOK_URL = "native_webhook_url"
+CONF_NATIVE_PAIRING_CODE = "native_pairing_code"
+CONF_HOME_ASSISTANT_URL = "home_assistant_url"
+
 DEFAULT_NAME = "Gotify MU"
 DEFAULT_PRIORITY = 5
 DEFAULT_VERIFY_SSL = True
