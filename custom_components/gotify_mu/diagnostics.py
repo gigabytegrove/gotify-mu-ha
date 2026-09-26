@@ -8,9 +8,22 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import GotifyMUConfigEntry
-from .const import CONF_APP_TOKEN, CONF_CLIENT_TOKEN
+from .const import (
+    CONF_APP_TOKEN,
+    CONF_CLIENT_TOKEN,
+    CONF_NATIVE_SECRET,
+    CONF_NATIVE_WEBHOOK_ID,
+    CONF_NATIVE_WEBHOOK_URL,
+)
+from .native import native_pairing_is_configured
 
-TO_REDACT = {CONF_APP_TOKEN, CONF_CLIENT_TOKEN}
+TO_REDACT = {
+    CONF_APP_TOKEN,
+    CONF_CLIENT_TOKEN,
+    CONF_NATIVE_SECRET,
+    CONF_NATIVE_WEBHOOK_ID,
+    CONF_NATIVE_WEBHOOK_URL,
+}
 
 
 async def async_get_config_entry_diagnostics(
@@ -33,5 +46,6 @@ async def async_get_config_entry_diagnostics(
             "stream_connected": runtime.stream_connected,
             "stream_reconnects": runtime.stream_reconnects,
             "last_stream_error": runtime.last_stream_error,
+            "native_paired": native_pairing_is_configured(dict(entry.data)),
         },
     }
