@@ -15,22 +15,45 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Copy canonical Gotify MU logo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Copy canonical Gotify MU brand
         run: |
           set -euo pipefail
           git clone --depth 1 https://github.com/gigabytegrove/gotify-mu.git /tmp/gotify-mu
           mkdir -p custom_components/gotify_mu/brand
           cp /tmp/gotify-mu/assets/gotify-mu-logo.png custom_components/gotify_mu/brand/logo.png
+
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("custom_components/gotify_mu/brand/logo.png")
+          target = Path("custom_components/gotify_mu/brand/icon.png")
+
+          with Image.open(source) as image:
+              image = image.convert("RGBA")
+              size = max(image.size)
+              canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+              x = (size - image.width) // 2
+              y = (size - image.height) // 2
+              canvas.paste(image, (x, y), image)
+              canvas.save(target, optimize=True)
+          PY
+
           file custom_components/gotify_mu/brand/logo.png
-      - name: Commit brand asset
+          file custom_components/gotify_mu/brand/icon.png
+      - name: Commit brand assets
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add custom_components/gotify_mu/brand/logo.png
+          git add custom_components/gotify_mu/brand/logo.png custom_components/gotify_mu/brand/icon.png
           if git diff --cached --quiet; then
-            echo "Brand asset already current"
+            echo "Brand assets already current"
             exit 0
           fi
-          git commit -m "brand: add canonical Gotify MU logo"
+          git commit -m "brand: add canonical Gotify MU icon"
           git push
