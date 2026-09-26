@@ -34,6 +34,9 @@ from .const import (
     CONF_CLIENT_TOKEN,
     CONF_DEFAULT_PRIORITY,
     CONF_INBOUND_ENABLED,
+    CONF_NATIVE_EVENT_PATH,
+    CONF_NATIVE_SECRET,
+    CONF_NATIVE_WEBHOOK_ID,
     CONF_SERVER_URL,
     CONF_VERIFY_SSL,
     DEFAULT_INBOUND_ENABLED,
@@ -45,6 +48,7 @@ from .const import (
     STREAM_RECONNECT_MAX_SECONDS,
 )
 from .helpers import channel_unique_id, fallback_unique_id
+from .native import GotifyMUNativeBridge, native_pairing_is_configured
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -364,6 +368,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     entry.async_on_unload(runtime.async_stop)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    if native_pairing_is_configured(data):
+        native_bridge = GotifyMUNativeBridge(
+            hass,
+            async_get_clientsession(hass),
+            name=runtime.channel_name,
+            server_url=data[CONF_SERVER_URL],
+            verify_ssl=data.get(CONF_VERIFY_SSL, True),
+            secret=data[CONF_NATIVE_SECRET],
+            event_path=data[CONF_NATIVE_EVENT_PATH],
+            webhook_id=data[CONF_NATIVE_WEBHOOK_ID],
+        )
+        native_bridge.async_start()
+        entry.async_on_unload(native_bridge.async_stop)
 
     if runtime.inbound_enabled:
         entry.async_create_background_task(
