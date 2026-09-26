@@ -1,41 +1,115 @@
 {
   "title": "Gotify MU",
   "config": {
+    "flow_title": "{name}",
     "step": {
       "user": {
         "title": "Connect to Gotify MU",
-        "description": "Add a Gotify MU channel using its application token.",
+        "description": "Enter the Channel application token used by Home Assistant to send notifications. Optionally add a client token to enable realtime inbound messages. Current Gotify MU servers identify the Channel automatically.",
         "data": {
           "server_url": "Server URL",
           "app_token": "Application token",
-          "channel_name": "Channel name",
-          "verify_ssl": "Verify TLS certificate",
-          "default_priority": "Default priority"
+          "client_token": "Client token (optional)",
+          "verify_ssl": "Verify TLS certificate"
         },
         "data_description": {
-          "server_url": "Base URL of your Gotify MU server, for example https://push.example.com.",
-          "app_token": "Application token for the Gotify MU Channel.",
-          "channel_name": "Name shown for this notification channel in Home Assistant.",
-          "verify_ssl": "Disable only when connecting to a trusted server with a private/self-signed certificate.",
-          "default_priority": "Default Gotify priority used by the notify entity."
+          "server_url": "Base URL of the Gotify MU server, for example https://push.example.com.",
+          "app_token": "Application token for the Channel used by Home Assistant to send messages.",
+          "client_token": "Optional Gotify MU client token. Required only for realtime inbound/two-way messages.",
+          "verify_ssl": "Disable only for a trusted private server using a self-signed or otherwise untrusted certificate."
+        }
+      },
+      "channel": {
+        "title": "Choose the Gotify MU Channel",
+        "description": "This server does not expose application-token identity. If a client token was supplied, choose the Channel associated with the application token. Otherwise enter a display name.",
+        "data": {
+          "channel_id": "Channel",
+          "channel_name": "Channel name"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Gotify MU",
+        "description": "The stored Gotify MU credentials are no longer accepted. Replace the application token and, if needed, the client token.",
+        "data": {
+          "app_token": "Application token",
+          "client_token": "Replacement client token (optional)",
+          "remove_client_token": "Remove stored client token"
+        },
+        "data_description": {
+          "client_token": "Leave blank to keep the existing client token.",
+          "remove_client_token": "Removes inbound/two-way access and disables the inbound stream."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Gotify MU",
+        "description": "Update network, display, and optional inbound-message settings for this Gotify MU Channel.",
+        "data": {
+          "server_url": "Server URL",
+          "channel_name": "Channel name",
+          "verify_ssl": "Verify TLS certificate",
+          "client_token": "Replacement client token (optional)",
+          "remove_client_token": "Remove stored client token"
+        },
+        "data_description": {
+          "client_token": "Leave blank to keep the existing client token.",
+          "remove_client_token": "Removes inbound/two-way access and disables the inbound stream."
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to the Gotify MU server."
+      "cannot_connect": "Could not connect to Gotify MU.",
+      "invalid_auth": "Gotify MU rejected the supplied credentials.",
+      "invalid_url": "Enter a valid http:// or https:// Gotify MU server URL.",
+      "rate_limited": "Gotify MU rate limited the validation request. Try again shortly.",
+      "channel_not_accessible": "The configured client token cannot access this Gotify MU Channel.",
+      "wrong_channel": "The application token belongs to a different Gotify MU Channel."
     },
     "abort": {
-      "already_configured": "This Gotify MU channel is already configured."
+      "already_configured": "This Gotify MU Channel is already configured.",
+      "reauth_successful": "Gotify MU authentication was updated successfully.",
+      "reconfigure_successful": "Gotify MU was reconfigured successfully.",
+      "setup_state_lost": "Setup state was lost. Start the integration setup again.",
+      "channel_not_found": "The selected Gotify MU Channel is no longer available.",
+      "unique_id_mismatch": "The supplied settings identify a different Gotify MU Channel."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Gotify MU options",
+        "description": "Control notification priority and realtime inbound message handling.",
         "data": {
-          "default_priority": "Default priority"
+          "default_priority": "Default priority",
+          "inbound_enabled": "Enable inbound messages"
+        },
+        "data_description": {
+          "default_priority": "Default Gotify priority used by the notify entity.",
+          "inbound_enabled": "Maintain a Gotify MU WebSocket connection and expose incoming Channel messages as a Home Assistant event entity."
         }
       }
+    }
+  },
+  "entity": {
+    "notify": {
+      "notifications": {
+        "name": "Notifications"
+      }
+    },
+    "event": {
+      "messages": {
+        "name": "Messages"
+      }
+    },
+    "binary_sensor": {
+      "inbound_connection": {
+        "name": "Inbound connection"
+      }
+    }
+  },
+  "services": {
+    "send": {
+      "name": "Send notification",
+      "description": "Send a notification through a configured Gotify MU Channel."
     }
   }
 }
