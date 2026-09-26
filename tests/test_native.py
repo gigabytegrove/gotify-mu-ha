@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.core import Event
@@ -33,6 +33,7 @@ from custom_components.gotify_mu.diagnostics import async_get_config_entry_diagn
 from custom_components.gotify_mu.native import (
     GotifyMUNativeBridge,
     GotifyMUNativePairingError,
+    _NativeDeliveryResult,
     async_pair_native,
 )
 
@@ -286,6 +287,28 @@ async def test_native_remove_requires_force_when_revoke_fails(hass, aioclient_mo
     assert entry.data[CONF_NATIVE_SECRET] == SHARED_SECRET
 
 
+async def test_native_force_local_remove_recovers_from_remote_revoke_failure(
+    hass, aioclient_mock
+):
+    """Force-local removal is an explicit recovery path for a stale remote pairing."""
+    entry = _entry(paired=True)
+    entry.add_to_hass(hass)
+    aioclient_mock.delete(REVOKE_URL, status=401)
+
+    result = await _open_native_pair_flow(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "native_remove"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"confirm": True, CONF_FORCE_LOCAL_REMOVE: True},
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data[CONF_APP_TOKEN] == "gtfya.application-token"
+    assert CONF_NATIVE_SECRET not in entry.data
+
+
 async def test_native_webhook_rejects_invalid_bearer(hass, hass_client):
     """The HA webhook rejects a request with the wrong shared secret."""
     assert await async_setup_component(hass, "webhook", {})
@@ -382,6 +405,41 @@ async def test_home_assistant_event_bus_posts_to_gotify_mu(hass, aioclient_mock)
         assert bridge.last_sent_at is not None
     finally:
         bridge.async_stop()
+
+
+async def test_native_event_delivery_retries_transient_failure(hass):
+    """Transient failures use bounded retry and recover without dropping the event."""
+    bridge = GotifyMUNativeBridge(
+        hass,
+        async_get_clientsession(hass),
+        name="Home Assistant",
+        server_url=SERVER,
+        verify_ssl=True,
+        secret=SHARED_SECRET,
+        event_path=EVENT_PATH,
+        webhook_id=WEBHOOK_ID,
+    )
+    event = Event("state_changed", {"entity_id": "binary_sensor.front_door"})
+    attempts = AsyncMock(
+        side_effect=[
+            _NativeDeliveryResult(
+                success=False,
+                retryable=True,
+                error="Gotify MU returned HTTP 503 for native event delivery",
+            ),
+            _NativeDeliveryResult(success=True),
+        ]
+    )
+    with (
+        patch.object(bridge, "_async_post_body", attempts),
+        patch("custom_components.gotify_mu.native.asyncio.sleep", new=AsyncMock()),
+    ):
+        assert await bridge._async_post_event(event)
+
+    assert attempts.await_count == 2
+    assert bridge.retry_count == 1
+    assert bridge.dropped_events == 0
+    assert bridge.status == "connected"
 
 
 async def test_native_event_auth_failure_marks_repair_required(hass, aioclient_mock):
