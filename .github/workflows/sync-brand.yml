@@ -1,0 +1,36 @@
+name: Sync Gotify MU brand
+
+on:
+  push:
+    paths:
+      - ".github/workflows/sync-brand.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-brand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Copy canonical Gotify MU logo
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/gigabytegrove/gotify-mu.git /tmp/gotify-mu
+          mkdir -p custom_components/gotify_mu/brand
+          cp /tmp/gotify-mu/assets/gotify-mu-logo.png custom_components/gotify_mu/brand/logo.png
+          file custom_components/gotify_mu/brand/logo.png
+      - name: Commit brand asset
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add custom_components/gotify_mu/brand/logo.png
+          if git diff --cached --quiet; then
+            echo "Brand asset already current"
+            exit 0
+          fi
+          git commit -m "brand: add canonical Gotify MU logo"
+          git push
