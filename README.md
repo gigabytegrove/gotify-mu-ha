@@ -219,9 +219,9 @@ The repository includes:
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 
-### 1.0 release track
+### 1.0 release
 
-The 0.4.x line is the pre-1.0 hardening track for the native Gotify MU bridge. The final `gotify-mu-ha` 1.0 release is intended to be tagged with Gotify MU 1.0 after the shared native-pairing contract is frozen and validated together.
+Gotify MU for Home Assistant 1.0 is the stable integration baseline for Gotify MU 1.0. The native pairing contract is versioned and validated together with the server release, while the existing application-token notification and optional client-token inbound-message paths remain supported.
 
 ## License
 
