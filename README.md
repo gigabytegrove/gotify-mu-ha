@@ -22,6 +22,9 @@ It provides native Home Assistant notification entities for Gotify MU Channels a
 - Connection-status binary sensor for the inbound WebSocket
 - Automatic reconnect with bounded backoff
 - Reauthentication and reconfiguration flows
+- Optional native Home Assistant pairing with Gotify MU, with no Home Assistant Long-Lived Access Token required
+- Authenticated Gotify MU → Home Assistant webhook events and Home Assistant → Gotify MU event forwarding
+- Native pairing can be repaired or removed without deleting the normal Gotify MU integration
 - Multiple Gotify MU Channels by adding multiple integration entries
 - Config-entry diagnostics with credentials redacted
 - TLS verification control for private/self-signed deployments
@@ -81,6 +84,29 @@ Enter:
 - **Verify TLS certificate** — keep enabled unless you deliberately use a trusted private certificate that Home Assistant cannot validate
 
 On current Gotify MU builds, the Channel is detected automatically from the application token. On older servers, the integration asks you to choose or name the Channel after credential validation.
+
+### Native Gotify MU pairing
+
+Native pairing is optional and additive. The application token remains the credential used by the notify entity and `gotify_mu.send`, while native pairing adds an authenticated event bridge between Gotify MU and Home Assistant.
+
+In Gotify MU, create or open a Home Assistant connection using **Native gotify-mu-ha integration** and generate its one-time pairing code. The code has the form:
+
+```text
+12.<random-secret>
+```
+
+Then in Home Assistant open the configured **Gotify MU** integration, choose **Configure → Native Home Assistant pairing → Pair with Gotify MU server**, and enter the pairing code.
+
+Home Assistant generates a random private webhook ID automatically. When Home Assistant can determine a usable instance URL, no additional URL is requested. Otherwise, the pairing flow asks for a Home Assistant base URL that the Gotify MU server can reach.
+
+A successful pairing stores only the native integration ID, shared secret, event path, and webhook details in Home Assistant config-entry storage. The one-time pairing code is never stored.
+
+The native bridge supports both directions:
+
+- **Gotify MU → Home Assistant:** Gotify MU posts authenticated payloads to the private HA webhook. The integration validates the Bearer secret and fires the supplied `eventType` on the Home Assistant event bus with the supplied `data`.
+- **Home Assistant → Gotify MU:** Home Assistant events are posted to the paired Gotify MU event endpoint using the shared Bearer secret. Gotify MU applies its configured event type, entity ID, field, and value filters before routing matching events into the selected Channel.
+
+Inbound native bridge payloads are events only. They are never converted into arbitrary Home Assistant service calls.
 
 ## Sending notifications
 
@@ -150,15 +176,19 @@ If Gotify MU rejects a stored token, Home Assistant starts a reauthentication fl
 
 **Reconfigure** allows you to change the server URL, display name, TLS validation, or replace/remove the optional client token. Removing the client token automatically disables inbound streaming while keeping outbound notifications intact.
 
+The integration options also expose the native pairing state as **Paired** or **Not paired**. A native pairing can be repaired with a new Gotify MU pairing code or removed independently without deleting the normal notification integration.
+
 ## Security
 
 - Tokens are stored in Home Assistant config-entry storage, not `configuration.yaml`.
-- Diagnostics redact both application and client tokens.
+- Diagnostics redact application tokens, client tokens, the native shared secret, and private webhook identifiers/URLs.
 - The application token is never included in the config-entry unique ID.
 - Current Gotify MU servers return application identity with the token field removed.
 - Use HTTPS when the Gotify MU server is reached over an untrusted network.
 - Disable TLS verification only when you intentionally trust the target server/network.
 - Inbound messages never execute Home Assistant actions on their own.
+- Native webhook requests require the exact shared Bearer secret and only fire Home Assistant events.
+- The one-time Gotify MU pairing code is never persisted by Home Assistant.
 
 ## Compatibility
 
