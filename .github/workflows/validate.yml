@@ -4,8 +4,11 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  validate:
+  static:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,14 +16,38 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile Python
-        run: python -m compileall custom_components/gotify_mu
+        run: python -m compileall custom_components/gotify_mu tests
       - name: Validate JSON
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           for path in Path(".").rglob("*.json"):
-              with path.open("r", encoding="utf-8") as f:
-                  json.load(f)
+              with path.open("r", encoding="utf-8") as file:
+                  json.load(file)
               print(f"OK {path}")
           PY
+      - name: Ruff
+        run: |
+          python -m pip install --upgrade pip ruff
+          ruff check custom_components tests
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-homeassistant-custom-component
+      - name: Run tests
+        run: pytest -q
