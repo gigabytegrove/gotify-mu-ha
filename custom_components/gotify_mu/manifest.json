@@ -1,12 +1,17 @@
 {
   "domain": "gotify_mu",
   "name": "Gotify MU",
-  "codeowners": ["@bradjtrammell"],
+  "codeowners": [
+    "@bradjtrammell"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/gigabytegrove/gotify-mu-ha",
   "integration_type": "service",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/gigabytegrove/gotify-mu-ha/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0",
+  "dependencies": [
+    "webhook"
+  ]
 }
