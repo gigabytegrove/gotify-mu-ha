@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from dataclasses import dataclass
 import json
 import logging
 import secrets
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from aiohttp import ClientConnectionError, ClientError, ClientSession, ClientTimeout, web
