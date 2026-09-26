@@ -1,0 +1,41 @@
+{
+  "title": "Gotify MU",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Gotify MU",
+        "description": "Add a Gotify MU channel using its application token.",
+        "data": {
+          "server_url": "Server URL",
+          "app_token": "Application token",
+          "channel_name": "Channel name",
+          "verify_ssl": "Verify TLS certificate",
+          "default_priority": "Default priority"
+        },
+        "data_description": {
+          "server_url": "Base URL of your Gotify MU server, for example https://push.example.com.",
+          "app_token": "Application token for the Gotify MU Channel.",
+          "channel_name": "Name shown for this notification channel in Home Assistant.",
+          "verify_ssl": "Disable only when connecting to a trusted server with a private/self-signed certificate.",
+          "default_priority": "Default Gotify priority used by the notify entity."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the Gotify MU server."
+    },
+    "abort": {
+      "already_configured": "This Gotify MU channel is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gotify MU options",
+        "data": {
+          "default_priority": "Default priority"
+        }
+      }
+    }
+  }
+}
