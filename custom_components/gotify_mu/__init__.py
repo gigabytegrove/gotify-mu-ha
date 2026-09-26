@@ -77,6 +77,7 @@ class GotifyMURuntimeData:
     channel_name: str
     entry_id: str
     inbound_enabled: bool
+    native_bridge: GotifyMUNativeBridge | None = None
     stream_connected: bool = False
     stream_reconnects: int = 0
     last_stream_error: str | None = None
@@ -367,8 +368,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     entry.runtime_data = runtime
     entry.async_on_unload(runtime.async_stop)
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     if native_pairing_is_configured(data):
         native_bridge = GotifyMUNativeBridge(
             hass,
@@ -380,8 +379,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
             event_path=data[CONF_NATIVE_EVENT_PATH],
             webhook_id=data[CONF_NATIVE_WEBHOOK_ID],
         )
+        runtime.native_bridge = native_bridge
         native_bridge.async_start()
         entry.async_on_unload(native_bridge.async_stop)
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     if runtime.inbound_enabled:
         entry.async_create_background_task(

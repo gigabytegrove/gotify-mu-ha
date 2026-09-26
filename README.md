@@ -25,6 +25,9 @@ It provides native Home Assistant notification entities for Gotify MU Channels a
 - Optional native Home Assistant pairing with Gotify MU, with no Home Assistant Long-Lived Access Token required
 - Authenticated Gotify MU → Home Assistant webhook events and Home Assistant → Gotify MU event forwarding
 - Native pairing can be repaired or removed without deleting the normal Gotify MU integration
+- Native bridge health sensor with Paired / Connected / Degraded / Repair required visibility
+- Bounded retry/backoff for transient Home Assistant → Gotify MU event-delivery failures
+- Authenticated remote revoke when native pairing is removed
 - Multiple Gotify MU Channels by adding multiple integration entries
 - Config-entry diagnostics with credentials redacted
 - TLS verification control for private/self-signed deployments
@@ -97,7 +100,7 @@ In Gotify MU, create or open a Home Assistant connection using **Native gotify-m
 
 Then in Home Assistant open the configured **Gotify MU** integration, choose **Configure → Native Home Assistant pairing → Pair with Gotify MU server**, and enter the pairing code.
 
-Home Assistant generates a random private webhook ID automatically. When Home Assistant can determine a usable instance URL, no additional URL is requested. Otherwise, the pairing flow asks for a Home Assistant base URL that the Gotify MU server can reach.
+Home Assistant generates a random private webhook ID automatically. It shows the callback URL it detected and always allows an optional base-URL override, which is useful when Home Assistant chooses an internal address that the Gotify MU server cannot actually reach. If no usable URL can be determined automatically, the override becomes required.
 
 A successful pairing stores only the native integration ID, shared secret, event path, and webhook details in Home Assistant config-entry storage. The one-time pairing code is never stored.
 
@@ -176,7 +179,11 @@ If Gotify MU rejects a stored token, Home Assistant starts a reauthentication fl
 
 **Reconfigure** allows you to change the server URL, display name, TLS validation, or replace/remove the optional client token. Removing the client token automatically disables inbound streaming while keeping outbound notifications intact.
 
-The integration options also expose the native pairing state as **Paired** or **Not paired**. A native pairing can be repaired with a new Gotify MU pairing code or removed independently without deleting the normal notification integration.
+The integration options expose the native pairing state as **Paired** or **Not paired**. A native pairing can be repaired with a new Gotify MU pairing code or removed independently without deleting the normal notification integration.
+
+Removing a native pairing first revokes the shared bridge credential on Gotify MU. A force-local-remove recovery option is available when the remote server is unavailable or the remote pairing has already been replaced; use it only when the Gotify MU side will be cleaned up separately.
+
+A paired entry also exposes a **Native bridge** connectivity binary sensor. Its attributes include bridge status, repair-required state, queued events, retry count, dropped-event count, last sent/received timestamps, and the last delivery error. Transient outbound failures use bounded exponential retry before an event is counted as dropped.
 
 ## Security
 
@@ -211,6 +218,10 @@ The repository includes:
 - Home Assistant config-flow tests
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+### 1.0 release track
+
+The 0.4.x line is the pre-1.0 hardening track for the native Gotify MU bridge. The final `gotify-mu-ha` 1.0 release is intended to be tagged with Gotify MU 1.0 after the shared native-pairing contract is frozen and validated together.
 
 ## License
 

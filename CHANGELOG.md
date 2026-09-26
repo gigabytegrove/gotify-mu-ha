@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.4.0 - 2026-09-26
+
+Pre-1.0 native bridge hardening release.
+
+### Added
+
+- Native bridge connectivity binary sensor with Paired, Connected, Degraded, and Repair required health.
+- Last sent/received timestamps, queue depth, retry count, dropped-event count, and last native delivery error.
+- Bounded exponential retry for transient Home Assistant → Gotify MU event delivery failures.
+- Authenticated remote native bridge revoke during unpair.
+- Force-local-remove recovery path when remote revocation cannot be completed.
+- Manual Home Assistant callback URL override even when Home Assistant auto-detects a URL.
+
+### Fixed
+
+- Treats Gotify MU HTTP 401/403/404 pairing responses as invalid pairing codes instead of generic pairing failures.
+- Native repair replaces only the native bridge credentials and leaves application-token notifications and optional client-token inbound messages intact.
+- Invalid inbound Bearer probes do not falsely mark a healthy bridge as repair-required.
+- Diagnostics include non-secret native health information while continuing to redact the shared secret and private webhook details.
+
+### Testing
+
+- Adds real Home Assistant event-bus → Gotify MU delivery coverage.
+- Adds pairing 401 coverage, manual callback override coverage, repair coverage, remote revoke/removal coverage, repair-required health coverage, and diagnostics redaction coverage.
+
 ## 0.3.0 - 2026-09-26
 
 ### Added

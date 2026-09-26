@@ -23,6 +23,7 @@ CONF_NATIVE_WEBHOOK_ID = "native_webhook_id"
 CONF_NATIVE_WEBHOOK_URL = "native_webhook_url"
 CONF_NATIVE_PAIRING_CODE = "native_pairing_code"
 CONF_HOME_ASSISTANT_URL = "home_assistant_url"
+CONF_FORCE_LOCAL_REMOVE = "force_local_remove"
 
 DEFAULT_NAME = "Gotify MU"
 DEFAULT_PRIORITY = 5

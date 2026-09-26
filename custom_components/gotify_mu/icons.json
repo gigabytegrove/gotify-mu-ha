@@ -18,6 +18,9 @@
     "binary_sensor": {
       "inbound_connection": {
         "default": "mdi:lan-connect"
+      },
+      "native_bridge": {
+        "default": "mdi:lan-check"
       }
     }
   }

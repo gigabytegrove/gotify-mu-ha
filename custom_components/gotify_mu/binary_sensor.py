@@ -1,4 +1,4 @@
-"""Connection status binary sensor for Gotify MU."""
+"""Connection status binary sensors for Gotify MU."""
 
 from __future__ import annotations
 
@@ -18,23 +18,24 @@ async def async_setup_entry(
     entry: GotifyMUConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Gotify MU stream status entity."""
-    if not entry.runtime_data.inbound_enabled:
-        return
-    async_add_entities([GotifyMUConnectionBinarySensor(entry)])
+    """Set up Gotify MU connection status entities."""
+    entities: list[BinarySensorEntity] = []
+    if entry.runtime_data.inbound_enabled:
+        entities.append(GotifyMUConnectionBinarySensor(entry))
+    if entry.runtime_data.native_bridge is not None:
+        entities.append(GotifyMUNativeBridgeBinarySensor(entry))
+    if entities:
+        async_add_entities(entities)
 
 
-class GotifyMUConnectionBinarySensor(BinarySensorEntity):
-    """Represent the realtime inbound stream connection state."""
+class _GotifyMUBaseConnectionSensor(BinarySensorEntity):
+    """Shared Gotify MU connection sensor device metadata."""
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-    _attr_translation_key = "inbound_connection"
 
     def __init__(self, entry: GotifyMUConfigEntry) -> None:
-        """Initialize the connection sensor."""
         self._entry = entry
-        self._attr_unique_id = f"{entry.unique_id}_inbound_connection"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
             name=entry.runtime_data.channel_name,
@@ -42,6 +43,17 @@ class GotifyMUConnectionBinarySensor(BinarySensorEntity):
             model="Notification Channel",
             configuration_url=entry.data[CONF_SERVER_URL],
         )
+
+
+class GotifyMUConnectionBinarySensor(_GotifyMUBaseConnectionSensor):
+    """Represent the realtime inbound stream connection state."""
+
+    _attr_translation_key = "inbound_connection"
+
+    def __init__(self, entry: GotifyMUConfigEntry) -> None:
+        """Initialize the inbound stream entity."""
+        super().__init__(entry)
+        self._attr_unique_id = f"{entry.unique_id}_inbound_connection"
 
     @property
     @override
@@ -70,4 +82,58 @@ class GotifyMUConnectionBinarySensor(BinarySensorEntity):
     @callback
     def _async_status_changed(self) -> None:
         """Write state after stream status changes."""
+        self.async_write_ha_state()
+
+
+class GotifyMUNativeBridgeBinarySensor(_GotifyMUBaseConnectionSensor):
+    """Represent native Gotify MU bridge health."""
+
+    _attr_translation_key = "native_bridge"
+
+    def __init__(self, entry: GotifyMUConfigEntry) -> None:
+        """Initialize the native bridge entity."""
+        super().__init__(entry)
+        self._attr_unique_id = f"{entry.unique_id}_native_bridge"
+
+    @property
+    def _bridge(self):
+        return self._entry.runtime_data.native_bridge
+
+    @property
+    @override
+    def is_on(self) -> bool:
+        """Return whether the native bridge is healthy."""
+        return bool(self._bridge and self._bridge.is_connected)
+
+    @property
+    @override
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return native bridge health and delivery diagnostics."""
+        bridge = self._bridge
+        if bridge is None:
+            return {"status": "not_paired"}
+        return {
+            "status": bridge.status,
+            "repair_required": bridge.repair_required,
+            "queued_events": bridge.queued_events,
+            "retry_count": bridge.retry_count,
+            "dropped_events": bridge.dropped_events,
+            "last_sent_at": bridge.last_sent_at,
+            "last_received_at": bridge.last_received_at,
+            "last_error": bridge.last_error,
+        }
+
+    @override
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to native bridge status changes."""
+        await super().async_added_to_hass()
+        bridge = self._bridge
+        if bridge is not None:
+            self.async_on_remove(
+                bridge.async_subscribe_status(self._async_status_changed)
+            )
+
+    @callback
+    def _async_status_changed(self) -> None:
+        """Write state after native bridge status changes."""
         self.async_write_ha_state()

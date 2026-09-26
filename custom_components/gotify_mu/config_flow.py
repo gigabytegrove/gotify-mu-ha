@@ -37,6 +37,7 @@ from .const import (
     CONF_CHANNEL_NAME,
     CONF_CLIENT_TOKEN,
     CONF_DEFAULT_PRIORITY,
+    CONF_FORCE_LOCAL_REMOVE,
     CONF_HOME_ASSISTANT_URL,
     CONF_INBOUND_ENABLED,
     CONF_NATIVE_PAIRING_CODE,
@@ -54,6 +55,7 @@ from .native import (
     GotifyMUNativePairingError,
     PendingNativeWebhook,
     async_pair_native,
+    async_revoke_native,
     native_pairing_data,
     native_pairing_is_configured,
     remove_native_pairing_data,
@@ -565,19 +567,20 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
 
         if user_input is not None:
             pairing_code = user_input[CONF_NATIVE_PAIRING_CODE].strip()
+            override_url = user_input.get(CONF_HOME_ASSISTANT_URL, "").strip()
             if not pairing_code:
                 errors["base"] = "invalid_pairing_code"
             else:
                 try:
-                    if auto_webhook_url is not None:
-                        webhook_url = auto_webhook_url
-                    else:
-                        base_url = normalize_server_url(
-                            user_input[CONF_HOME_ASSISTANT_URL]
-                        )
+                    if override_url:
+                        base_url = normalize_server_url(override_url)
                         webhook_url = (
                             f"{base_url}{webhook.async_generate_path(webhook_id)}"
                         )
+                    elif auto_webhook_url is not None:
+                        webhook_url = auto_webhook_url
+                    else:
+                        raise ValueError("Home Assistant callback URL is required")
 
                     pending = PendingNativeWebhook(self.hass, webhook_id)
                     pending.async_register()
@@ -626,28 +629,67 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
             schema_dict[vol.Required(CONF_HOME_ASSISTANT_URL)] = TextSelector(
                 TextSelectorConfig(type=TextSelectorType.URL)
             )
+        else:
+            schema_dict[vol.Optional(CONF_HOME_ASSISTANT_URL, default="")] = TextSelector(
+                TextSelectorConfig(type=TextSelectorType.URL)
+            )
 
         return self.async_show_form(
             step_id="native_pair",
             data_schema=vol.Schema(schema_dict),
             errors=errors,
+            description_placeholders={
+                "auto_url": auto_webhook_url or "Not available",
+            },
         )
 
     async def async_step_native_remove(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Remove native pairing while keeping the normal Gotify MU entry."""
+        """Revoke and remove native pairing while keeping the normal MU entry."""
+        errors: dict[str, str] = {}
         if user_input is not None and user_input.get("confirm"):
-            data = remove_native_pairing_data(dict(self.config_entry.data))
-            self.hass.config_entries.async_update_entry(self.config_entry, data=data)
-            self.hass.config_entries.async_schedule_reload(
-                self.config_entry.entry_id
-            )
-            return self.async_create_entry(data=dict(self.config_entry.options))
+            force_local = bool(user_input.get(CONF_FORCE_LOCAL_REMOVE, False))
+            try:
+                await async_revoke_native(
+                    async_get_clientsession(self.hass),
+                    server_url=self.config_entry.data[CONF_SERVER_URL],
+                    verify_ssl=self.config_entry.data.get(
+                        CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+                    ),
+                    integration_id=int(
+                        self.config_entry.data[CONF_NATIVE_INTEGRATION_ID]
+                    ),
+                    secret=self.config_entry.data[CONF_NATIVE_SECRET],
+                )
+            except (KeyError, TypeError, ValueError):
+                if not force_local:
+                    errors["base"] = "unpair_failed"
+            except GotifyMUNativePairingError as err:
+                if not force_local:
+                    errors["base"] = err.reason
+
+            if not errors:
+                data = remove_native_pairing_data(dict(self.config_entry.data))
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=data
+                )
+                self.hass.config_entries.async_schedule_reload(
+                    self.config_entry.entry_id
+                )
+                return self.async_create_entry(
+                    data=dict(self.config_entry.options)
+                )
 
         return self.async_show_form(
             step_id="native_remove",
             data_schema=vol.Schema(
-                {vol.Required("confirm", default=False): BooleanSelector()}
+                {
+                    vol.Required("confirm", default=False): BooleanSelector(),
+                    vol.Optional(
+                        CONF_FORCE_LOCAL_REMOVE, default=False
+                    ): BooleanSelector(),
+                }
             ),
+            errors=errors,
         )

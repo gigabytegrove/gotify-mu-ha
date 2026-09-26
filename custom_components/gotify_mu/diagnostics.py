@@ -47,5 +47,19 @@ async def async_get_config_entry_diagnostics(
             "stream_reconnects": runtime.stream_reconnects,
             "last_stream_error": runtime.last_stream_error,
             "native_paired": native_pairing_is_configured(dict(entry.data)),
+            "native_bridge": (
+                {
+                    "status": runtime.native_bridge.status,
+                    "repair_required": runtime.native_bridge.repair_required,
+                    "queued_events": runtime.native_bridge.queued_events,
+                    "retry_count": runtime.native_bridge.retry_count,
+                    "dropped_events": runtime.native_bridge.dropped_events,
+                    "last_sent_at": runtime.native_bridge.last_sent_at,
+                    "last_received_at": runtime.native_bridge.last_received_at,
+                    "last_error": runtime.native_bridge.last_error,
+                }
+                if runtime.native_bridge is not None
+                else None
+            ),
         },
     }

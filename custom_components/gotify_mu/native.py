@@ -8,6 +8,7 @@ import logging
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from aiohttp import ClientConnectionError, ClientError, ClientSession, ClientTimeout, web
@@ -30,6 +31,11 @@ _LOGGER = logging.getLogger(__name__)
 
 NATIVE_PAIR_PATH = "/integrations/home-assistant/native/pair"
 _NATIVE_QUEUE_MAXSIZE = 4096
+_NATIVE_RETRY_ATTEMPTS = 4
+_NATIVE_RETRY_BASE_SECONDS = 1
+_NATIVE_RETRY_MAX_SECONDS = 8
+
+BridgeStatusCallback = Callable[[], None]
 
 
 class GotifyMUNativeError(Exception):
@@ -37,7 +43,7 @@ class GotifyMUNativeError(Exception):
 
 
 class GotifyMUNativePairingError(GotifyMUNativeError):
-    """Native pairing failed with a user-facing reason."""
+    """Native pairing or unpairing failed with a user-facing reason."""
 
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
@@ -51,6 +57,20 @@ class NativePairingResult:
     integration_id: int
     secret: str
     event_path: str
+
+
+@dataclass(frozen=True, slots=True)
+class _NativeDeliveryResult:
+    """Result of one native event delivery attempt."""
+
+    success: bool
+    retryable: bool = False
+    repair_required: bool = False
+    error: str | None = None
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def native_pairing_is_configured(data: dict[str, Any]) -> bool:
@@ -110,7 +130,7 @@ async def async_pair_native(
             ssl=verify_ssl,
             timeout=ClientTimeout(total=REQUEST_TIMEOUT_SECONDS),
         ) as response:
-            if response.status == 400:
+            if response.status in (400, 401, 403, 404):
                 raise GotifyMUNativePairingError("invalid_pairing_code")
             if response.status == 410:
                 raise GotifyMUNativePairingError("pairing_expired")
@@ -150,6 +170,39 @@ async def async_pair_native(
         raise GotifyMUNativePairingError("cannot_connect") from err
 
 
+async def async_revoke_native(
+    session: ClientSession,
+    *,
+    server_url: str,
+    verify_ssl: bool,
+    integration_id: int,
+    secret: str,
+) -> None:
+    """Revoke a native bridge on Gotify MU before clearing local credentials."""
+    try:
+        async with session.delete(
+            f"{server_url.rstrip('/')}/integrations/home-assistant/native/{integration_id}",
+            headers={"Authorization": f"Bearer {secret}"},
+            ssl=verify_ssl,
+            timeout=ClientTimeout(total=REQUEST_TIMEOUT_SECONDS),
+        ) as response:
+            if 200 <= response.status < 300:
+                return
+            if response.status in (401, 403):
+                raise GotifyMUNativePairingError("unpair_auth_failed")
+            if response.status == 404:
+                raise GotifyMUNativePairingError("unpair_not_found")
+            if response.status == 429:
+                raise GotifyMUNativePairingError("rate_limited")
+            if response.status >= 500:
+                raise GotifyMUNativePairingError("cannot_unpair")
+            raise GotifyMUNativePairingError("unpair_failed")
+    except GotifyMUNativePairingError:
+        raise
+    except (ClientConnectionError, ClientError, TimeoutError) as err:
+        raise GotifyMUNativePairingError("cannot_unpair") from err
+
+
 def _bearer_token(request: web.Request) -> str | None:
     """Extract a Bearer token without logging or transforming it."""
     header = request.headers.get("Authorization", "")
@@ -166,6 +219,7 @@ async def async_handle_native_webhook(
     *,
     secret: str,
     suppress_context_ids: set[str] | None = None,
+    on_received: Callable[[], None] | None = None,
 ) -> web.Response:
     """Validate and deliver one Gotify MU -> Home Assistant event."""
     supplied = _bearer_token(request)
@@ -199,6 +253,8 @@ async def async_handle_native_webhook(
             suppress_context_ids.discard(context.id)
         return web.Response(status=400)
 
+    if on_received is not None:
+        on_received()
     if suppress_context_ids is not None:
         hass.loop.call_soon(suppress_context_ids.discard, context.id)
     return web.Response(status=200)
@@ -274,14 +330,85 @@ class GotifyMUNativeBridge:
         self._secret = secret
         self._event_path = event_path
         self._webhook_id = webhook_id
-        self._queue: asyncio.Queue[Event[Any] | None] = asyncio.Queue(
+        self._queue: asyncio.Queue[Event[Any]] = asyncio.Queue(
             maxsize=_NATIVE_QUEUE_MAXSIZE
         )
         self._remove_listener: Callable[[], None] | None = None
         self._worker: asyncio.Task[None] | None = None
         self._suppress_context_ids: set[str] = set()
+        self._status_listeners: set[BridgeStatusCallback] = set()
         self._stopped = False
         self._queue_warning_emitted = False
+        self.status = "paired"
+        self.last_sent_at: datetime | None = None
+        self.last_received_at: datetime | None = None
+        self.last_error: str | None = None
+        self.retry_count = 0
+        self.dropped_events = 0
+
+    @property
+    def is_connected(self) -> bool:
+        """Return whether the native bridge is presently healthy."""
+        return self.status in ("paired", "connected")
+
+    @property
+    def repair_required(self) -> bool:
+        """Return whether Gotify MU rejected the stored native credential."""
+        return self.status == "repair_required"
+
+    @property
+    def queued_events(self) -> int:
+        """Return the number of Home Assistant events waiting for delivery."""
+        return self._queue.qsize()
+
+    @callback
+    def async_subscribe_status(
+        self, listener: BridgeStatusCallback
+    ) -> Callable[[], None]:
+        """Subscribe to native bridge status changes."""
+        self._status_listeners.add(listener)
+
+        @callback
+        def remove_listener() -> None:
+            self._status_listeners.discard(listener)
+
+        return remove_listener
+
+    @callback
+    def _async_notify_status(self) -> None:
+        for listener in tuple(self._status_listeners):
+            listener()
+
+    @callback
+    def _async_mark_connected(
+        self, *, sent: bool = False, received: bool = False
+    ) -> None:
+        changed = self.status != "connected" or self.last_error is not None
+        self.status = "connected"
+        self.last_error = None
+        now = _utcnow()
+        if sent:
+            self.last_sent_at = now
+            changed = True
+        if received:
+            self.last_received_at = now
+            changed = True
+        if changed:
+            self._async_notify_status()
+
+    @callback
+    def _async_mark_degraded(self, error: str) -> None:
+        if self.status != "degraded" or self.last_error != error:
+            self.status = "degraded"
+            self.last_error = error
+            self._async_notify_status()
+
+    @callback
+    def _async_mark_repair_required(self, error: str) -> None:
+        if self.status != "repair_required" or self.last_error != error:
+            self.status = "repair_required"
+            self.last_error = error
+            self._async_notify_status()
 
     @callback
     def async_start(self) -> None:
@@ -314,6 +441,7 @@ class GotifyMUNativeBridge:
             request,
             secret=self._secret,
             suppress_context_ids=self._suppress_context_ids,
+            on_received=lambda: self._async_mark_connected(received=True),
         )
 
     @callback
@@ -323,25 +451,26 @@ class GotifyMUNativeBridge:
         try:
             self._queue.put_nowait(event)
             self._queue_warning_emitted = False
+            self._async_notify_status()
         except asyncio.QueueFull:
+            self.dropped_events += 1
+            error = "Native event queue is full; new events are being dropped"
+            self._async_mark_degraded(error)
             if not self._queue_warning_emitted:
-                _LOGGER.warning(
-                    "Gotify MU native event queue is full for %s; new events are being dropped",
-                    self._name,
-                )
+                _LOGGER.warning("%s for %s", error, self._name)
                 self._queue_warning_emitted = True
 
     async def _async_worker(self) -> None:
         try:
             while True:
                 event = await self._queue.get()
-                if event is None:
-                    return
                 try:
                     await self._async_post_event(event)
                 except asyncio.CancelledError:
                     raise
                 except Exception as err:  # Defensive: never destabilize the HA event bus.
+                    self.dropped_events += 1
+                    self._async_mark_degraded(str(err))
                     _LOGGER.debug(
                         "Gotify MU native event delivery failed for %s: %s",
                         self._name,
@@ -349,23 +478,56 @@ class GotifyMUNativeBridge:
                     )
                 finally:
                     self._queue.task_done()
+                    self._async_notify_status()
         except asyncio.CancelledError:
             raise
 
-    async def _async_post_event(self, event: Event[Any]) -> None:
+    async def _async_post_event(self, event: Event[Any]) -> bool:
+        """Post an event with bounded retry/backoff for transient failures."""
         try:
             body = json_bytes(
                 {"eventType": event.event_type, "data": dict(event.data)}
             )
         except (TypeError, ValueError) as err:
+            self.dropped_events += 1
+            self._async_mark_degraded(
+                f"Could not serialize Home Assistant event {event.event_type}"
+            )
             _LOGGER.debug(
                 "Skipping unserializable Home Assistant event %s for %s: %s",
                 event.event_type,
                 self._name,
                 err,
             )
-            return
+            return False
 
+        delay = _NATIVE_RETRY_BASE_SECONDS
+        last_error = "Native event delivery failed"
+        for attempt in range(1, _NATIVE_RETRY_ATTEMPTS + 1):
+            result = await self._async_post_body(body)
+            if result.success:
+                self._async_mark_connected(sent=True)
+                return True
+            last_error = result.error or last_error
+            if result.repair_required:
+                self.dropped_events += 1
+                self._async_mark_repair_required(last_error)
+                return False
+            if not result.retryable:
+                self.dropped_events += 1
+                self._async_mark_degraded(last_error)
+                return False
+            if attempt < _NATIVE_RETRY_ATTEMPTS:
+                self.retry_count += 1
+                self._async_notify_status()
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, _NATIVE_RETRY_MAX_SECONDS)
+
+        self.dropped_events += 1
+        self._async_mark_degraded(last_error)
+        return False
+
+    async def _async_post_body(self, body: bytes) -> _NativeDeliveryResult:
         try:
             async with self._session.post(
                 f"{self._server_url}{self._event_path}",
@@ -377,29 +539,27 @@ class GotifyMUNativeBridge:
                 ssl=self._verify_ssl,
                 timeout=ClientTimeout(total=REQUEST_TIMEOUT_SECONDS),
             ) as response:
+                if 200 <= response.status < 300:
+                    return _NativeDeliveryResult(success=True)
+                error = f"Gotify MU returned HTTP {response.status} for native event delivery"
                 if response.status in (401, 403):
-                    _LOGGER.warning(
-                        "Gotify MU rejected the native bridge credential for %s; repair pairing",
-                        self._name,
+                    return _NativeDeliveryResult(
+                        success=False,
+                        repair_required=True,
+                        error=error,
                     )
-                    return
-                if response.status == 429:
-                    _LOGGER.debug(
-                        "Gotify MU rate limited a native Home Assistant event for %s",
-                        self._name,
+                if response.status in (408, 429) or response.status >= 500:
+                    return _NativeDeliveryResult(
+                        success=False,
+                        retryable=True,
+                        error=error,
                     )
-                    return
-                if response.status < 200 or response.status >= 300:
-                    _LOGGER.debug(
-                        "Gotify MU returned HTTP %s for a native Home Assistant event for %s",
-                        response.status,
-                        self._name,
-                    )
+                return _NativeDeliveryResult(success=False, error=error)
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            _LOGGER.debug(
-                "Could not deliver native Home Assistant event to Gotify MU for %s: %s",
-                self._name,
-                err,
+            return _NativeDeliveryResult(
+                success=False,
+                retryable=True,
+                error=f"Could not connect to Gotify MU: {err}",
             )
 
     @callback
@@ -416,3 +576,4 @@ class GotifyMUNativeBridge:
             self._worker.cancel()
             self._worker = None
         self._suppress_context_ids.clear()
+        self._status_listeners.clear()
