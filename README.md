@@ -1,5 +1,10 @@
 # Gotify MU for Home Assistant
 
+<p align="center">
+  <img src="custom_components/gotify_mu/brand/logo.png" alt="Gotify MU" width="420">
+</p>
+
+
 A Home Assistant custom integration for [Gotify MU](https://github.com/gigabytegrove/gotify-mu).
 
 It provides native Home Assistant notification entities for Gotify MU Channels and optional realtime inbound Channel messages for two-way automations.
@@ -180,3 +185,14 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 ## License
 
 MIT
+
+## Branding
+
+The integration ships its Home Assistant brand assets directly with the custom component:
+
+- `custom_components/gotify_mu/brand/logo.png` — canonical Gotify MU logo
+- `custom_components/gotify_mu/brand/icon.png` — square Home Assistant integration icon
+
+<p align="center">
+  <img src="custom_components/gotify_mu/brand/icon.png" alt="Gotify MU icon" width="160">
+</p>
