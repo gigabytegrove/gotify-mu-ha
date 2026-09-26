@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0 - 2026-09-26
+
+### Added
+
+- Native Gotify MU ↔ Home Assistant pairing using one-time Gotify MU pairing codes.
+- Random private Home Assistant webhook registration for Gotify MU → Home Assistant events.
+- Bearer-secret validation for native inbound events.
+- Home Assistant event forwarding to the paired Gotify MU native event endpoint.
+- Native pairing management in the integration options, including clear Paired / Not paired state, repair, and removal without deleting the normal Gotify MU integration.
+- Automatic Home Assistant webhook URL discovery with a manual reachable-URL fallback only when Home Assistant cannot determine one.
+- Native pairing and bridge coverage for successful pairing, invalid/expired/failed codes, invalid Bearer credentials, outbound event posting, and inbound event receipt.
+
+### Changed
+
+- Gotify MU options are split into notification/inbound-message settings and native Home Assistant pairing management.
+- The webhook component is now an integration dependency.
+- Integration version is now 0.3.0.
+
+### Security
+
+- Native shared secrets and private webhook identifiers/URLs are redacted from diagnostics.
+- One-time pairing codes are never persisted.
+- Native Gotify MU payloads can fire Home Assistant events only; they are never interpreted as service calls.
+- Native webhook Bearer credentials are compared using constant-time secret comparison.
+
 ## 0.2.0 - 2026-09-26
 
 ### Added
