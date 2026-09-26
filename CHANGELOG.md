@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-rc1 - 2026-09-26
+
+Release candidate for the tandem Gotify MU 1.0 launch. Functionally identical to the validated 0.4.0 pre-1.0 hardening baseline, with versioning promoted for final cross-project compatibility validation against Gotify MU `release/v1.0.0-rc1`.
+
 ## 0.4.0 - 2026-09-26
 
 Pre-1.0 native bridge hardening release.
