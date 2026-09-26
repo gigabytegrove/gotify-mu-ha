@@ -8,8 +8,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
@@ -20,6 +18,7 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import voluptuous as vol
 
 from .api import (
     GotifyMUAuthError,
@@ -46,6 +45,8 @@ from .const import (
     STREAM_RECONNECT_MAX_SECONDS,
 )
 from .helpers import channel_unique_id, fallback_unique_id
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
