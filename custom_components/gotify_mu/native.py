@@ -298,7 +298,7 @@ class GotifyMUNativeBridge:
         self._remove_listener = self._hass.bus.async_listen(
             MATCH_ALL, self._async_queue_event
         )
-        self._worker = self._hass.async_create_task(
+        self._worker = self._hass.async_create_background_task(
             self._async_worker(), f"Gotify MU native bridge: {self._name}"
         )
 
