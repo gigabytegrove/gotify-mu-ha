@@ -4,6 +4,7 @@
 
 ### Added
 
+- Dedicated Gotify MU HA integration logo and transparent Home Assistant connector icon based on the Gotify MU mascot.
 - Exact application-token validation and Channel identity using the Gotify MU application identity endpoint when available.
 - Safe legacy token-validation fallback that does not create a notification.
 - Stable Channel-ID-based config-entry identity when supported by the server.
