@@ -6,8 +6,10 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components import webhook
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.network import NoURLAvailableError
 from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
@@ -35,7 +37,9 @@ from .const import (
     CONF_CHANNEL_NAME,
     CONF_CLIENT_TOKEN,
     CONF_DEFAULT_PRIORITY,
+    CONF_HOME_ASSISTANT_URL,
     CONF_INBOUND_ENABLED,
+    CONF_NATIVE_PAIRING_CODE,
     CONF_REMOVE_CLIENT_TOKEN,
     CONF_SERVER_URL,
     CONF_VERIFY_SSL,
@@ -46,6 +50,14 @@ from .const import (
     DOMAIN,
 )
 from .helpers import channel_unique_id, fallback_unique_id, normalize_server_url
+from .native import (
+    GotifyMUNativePairingError,
+    PendingNativeWebhook,
+    async_pair_native,
+    native_pairing_data,
+    native_pairing_is_configured,
+    remove_native_pairing_data,
+)
 
 
 class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -460,12 +472,28 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
-    """Handle Gotify MU options and reload automatically."""
+    """Handle Gotify MU options and native pairing."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage integration options."""
+        """Show the options navigation menu."""
+        del user_input
+        state = (
+            "Paired"
+            if native_pairing_is_configured(dict(self.config_entry.data))
+            else "Not paired"
+        )
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["settings", "native_pairing"],
+            description_placeholders={"native_state": state},
+        )
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage existing notification and inbound stream options."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
@@ -495,6 +523,131 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
             ] = BooleanSelector()
 
         return self.async_show_form(
-            step_id="init",
+            step_id="settings",
             data_schema=vol.Schema(schema_dict),
+        )
+
+    async def async_step_native_pairing(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the native Gotify MU pairing state."""
+        del user_input
+        if not native_pairing_is_configured(dict(self.config_entry.data)):
+            return await self.async_step_native_pair()
+        return self.async_show_menu(
+            step_id="native_pairing",
+            menu_options=["native_repair", "native_remove"],
+        )
+
+    async def async_step_native_repair(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Replace an existing native pairing without deleting the integration."""
+        return await self.async_step_native_pair(user_input)
+
+    async def async_step_native_pair(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pair this config entry with a Gotify MU native HA connection."""
+        errors: dict[str, str] = {}
+        webhook_id = webhook.async_generate_id()
+        auto_webhook_url: str | None
+        try:
+            auto_webhook_url = webhook.async_generate_url(
+                self.hass,
+                webhook_id,
+                allow_internal=True,
+                allow_external=True,
+                prefer_external=True,
+            )
+        except NoURLAvailableError:
+            auto_webhook_url = None
+
+        if user_input is not None:
+            pairing_code = user_input[CONF_NATIVE_PAIRING_CODE].strip()
+            if not pairing_code:
+                errors["base"] = "invalid_pairing_code"
+            else:
+                try:
+                    if auto_webhook_url is not None:
+                        webhook_url = auto_webhook_url
+                    else:
+                        base_url = normalize_server_url(
+                            user_input[CONF_HOME_ASSISTANT_URL]
+                        )
+                        webhook_url = (
+                            f"{base_url}{webhook.async_generate_path(webhook_id)}"
+                        )
+
+                    pending = PendingNativeWebhook(self.hass, webhook_id)
+                    pending.async_register()
+                    try:
+                        result = await async_pair_native(
+                            async_get_clientsession(self.hass),
+                            server_url=self.config_entry.data[CONF_SERVER_URL],
+                            verify_ssl=self.config_entry.data.get(
+                                CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+                            ),
+                            pairing_code=pairing_code,
+                            webhook_url=webhook_url,
+                        )
+                        pending.async_activate(result.secret)
+                        data = remove_native_pairing_data(dict(self.config_entry.data))
+                        data.update(
+                            native_pairing_data(
+                                result,
+                                webhook_id=webhook_id,
+                                webhook_url=webhook_url,
+                            )
+                        )
+                        self.hass.config_entries.async_update_entry(
+                            self.config_entry, data=data
+                        )
+                    finally:
+                        pending.async_unregister()
+                except ValueError:
+                    errors["base"] = "invalid_ha_url"
+                except GotifyMUNativePairingError as err:
+                    errors["base"] = err.reason
+                else:
+                    self.hass.config_entries.async_schedule_reload(
+                        self.config_entry.entry_id
+                    )
+                    return self.async_create_entry(
+                        data=dict(self.config_entry.options)
+                    )
+
+        schema_dict: dict[Any, Any] = {
+            vol.Required(CONF_NATIVE_PAIRING_CODE): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            )
+        }
+        if auto_webhook_url is None:
+            schema_dict[vol.Required(CONF_HOME_ASSISTANT_URL)] = TextSelector(
+                TextSelectorConfig(type=TextSelectorType.URL)
+            )
+
+        return self.async_show_form(
+            step_id="native_pair",
+            data_schema=vol.Schema(schema_dict),
+            errors=errors,
+        )
+
+    async def async_step_native_remove(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Remove native pairing while keeping the normal Gotify MU entry."""
+        if user_input is not None and user_input.get("confirm"):
+            data = remove_native_pairing_data(dict(self.config_entry.data))
+            self.hass.config_entries.async_update_entry(self.config_entry, data=data)
+            self.hass.config_entries.async_schedule_reload(
+                self.config_entry.entry_id
+            )
+            return self.async_create_entry(data=dict(self.config_entry.options))
+
+        return self.async_show_form(
+            step_id="native_remove",
+            data_schema=vol.Schema(
+                {vol.Required("confirm", default=False): BooleanSelector()}
+            ),
         )
