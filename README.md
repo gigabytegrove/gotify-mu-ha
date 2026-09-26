@@ -2,19 +2,51 @@
 
 A Home Assistant custom integration for [Gotify MU](https://github.com/gigabytegrove/gotify-mu).
 
+It provides native Home Assistant notification entities for Gotify MU Channels and optional realtime inbound Channel messages for two-way automations.
+
 ## Features
 
-- UI-based setup through **Settings → Devices & services**
-- Standard Home Assistant `notify` entity for automations and scripts
+- UI setup through **Settings → Devices & services**
+- No `configuration.yaml` changes required
+- Standard Home Assistant `notify` entity
 - Native `gotify_mu.send` action with priority and Markdown support
-- Multiple Gotify MU channels by adding multiple integration entries
-- Uses the existing Gotify-compatible `POST /message` API
-- Application-token authentication via `X-Gotify-Key`
-- Configurable TLS certificate verification
-- No YAML configuration required
+- Exact application-token validation without creating a test notification
+- Stable Channel identity on current Gotify MU servers
+- Optional client token for realtime inbound messages
+- Home Assistant `event` entity containing inbound Channel messages
+- Connection-status binary sensor for the inbound WebSocket
+- Automatic reconnect with bounded backoff
+- Reauthentication and reconfiguration flows
+- Multiple Gotify MU Channels by adding multiple integration entries
+- Config-entry diagnostics with credentials redacted
+- TLS verification control for private/self-signed deployments
 - HACS-compatible repository layout
+- Legacy fallback for Gotify-compatible servers without the MU identity endpoint
 
-## Install manually
+## Requirements
+
+Outbound notifications require:
+
+- a Gotify MU server URL
+- an application token for the Channel
+
+Realtime inbound messages additionally require a Gotify MU **client token** belonging to a user who can access the Channel.
+
+Current Gotify MU builds expose `GET /application/current`, allowing this integration to identify the application token's exact Channel automatically. Older Gotify-compatible servers still work for outbound notifications using a safe validation fallback.
+
+## Installation
+
+### HACS
+
+Add this repository to HACS as a **Custom repository** with category **Integration**:
+
+```text
+https://github.com/gigabytegrove/gotify-mu-ha
+```
+
+Install **Gotify MU**, then restart Home Assistant.
+
+### Manual
 
 Copy:
 
@@ -30,49 +62,40 @@ to:
 
 Restart Home Assistant.
 
-Then open:
+## Setup
+
+Open:
 
 **Settings → Devices & services → Add integration → Gotify MU**
 
 Enter:
 
-- Server URL, such as `https://gotify.example.com`
-- Gotify MU application token for the Channel
-- Channel name
-- TLS verification preference
-- Default priority
+- **Server URL** — for example `https://push.example.com`
+- **Application token** — the application token for the Gotify MU Channel
+- **Client token** — optional; required only for inbound/two-way messages
+- **Verify TLS certificate** — keep enabled unless you deliberately use a trusted private certificate that Home Assistant cannot validate
 
-## HACS
+On current Gotify MU builds, the Channel is detected automatically from the application token. On older servers, the integration asks you to choose or name the Channel after credential validation.
 
-Add this repository to HACS as a **Custom repository** with category **Integration**, then install **Gotify MU** and restart Home Assistant.
+## Sending notifications
 
-## Using the notify entity
-
-After setup, Home Assistant creates a `notify` entity for the configured Gotify MU Channel.
-
-Example:
+Home Assistant creates a notification entity for each configured Gotify MU Channel.
 
 ```yaml
 action:
   - action: notify.send_message
     target:
-      entity_id: notify.gotify_mu
+      entity_id: notify.gotify_mu_notifications
     data:
       title: "Gigabyte Grove"
       message: "Home Assistant is online."
 ```
 
-The final entity ID is assigned by Home Assistant and may include the configured Channel name.
+Home Assistant chooses the final entity ID, so use the entity picker rather than assuming the example ID.
 
-## Native Gotify MU action
+### Gotify MU action
 
-The integration also exposes:
-
-```text
-gotify_mu.send
-```
-
-Example:
+For Gotify-specific priority and Markdown controls, use:
 
 ```yaml
 action:
@@ -84,24 +107,75 @@ action:
       markdown: true
 ```
 
-If multiple Gotify MU config entries exist, `entry_id` can be supplied to select a specific one. If omitted, the first configured entry is used.
+If multiple Gotify MU entries are configured, the action UI can target a specific config entry. If no entry is specified, the first loaded Gotify MU entry is used.
+
+## Inbound / two-way messages
+
+When a client token is configured and **Enable inbound messages** is on, the integration maintains a Gotify MU WebSocket connection.
+
+Each incoming message from the configured Channel updates the integration's **Messages** event entity with:
+
+- message ID
+- Channel ID
+- title
+- message body
+- priority
+- date
+- sender user ID
+- sender name
+- Gotify extras
+
+The integration also creates an **Inbound connection** binary sensor. Its attributes expose reconnect count and the most recent stream error.
+
+Messages sent by the same Home Assistant config entry are tagged and ignored by that entry's inbound stream, preventing an immediate send → receive automation loop.
+
+### Safety behavior
+
+Inbound Gotify MU messages are **events only**. The integration never interprets message text as a Home Assistant command and never executes services automatically. If you want a Chat Channel message to perform an action, create an explicit Home Assistant automation with the conditions and permissions appropriate for that action.
+
+## Credential validation
+
+Current Gotify MU servers provide a token-identity endpoint that returns the authenticated Channel metadata with the token redacted.
+
+For older Gotify-compatible servers, application-token validation does **not** send a visible test message. The integration submits an intentionally incomplete `/message` request. Gotify authenticates before validating the body, so a valid token fails safely with HTTP 400 before message creation while an invalid token fails with HTTP 401/403.
+
+## Reauthentication and reconfiguration
+
+If Gotify MU rejects a stored token, Home Assistant starts a reauthentication flow instead of requiring the integration to be deleted and recreated.
+
+**Reconfigure** allows you to change the server URL, display name, TLS validation, or replace/remove the optional client token. Removing the client token automatically disables inbound streaming while keeping outbound notifications intact.
+
+## Security
+
+- Tokens are stored in Home Assistant config-entry storage, not `configuration.yaml`.
+- Diagnostics redact both application and client tokens.
+- The application token is never included in the config-entry unique ID.
+- Current Gotify MU servers return application identity with the token field removed.
+- Use HTTPS when the Gotify MU server is reached over an untrusted network.
+- Disable TLS verification only when you intentionally trust the target server/network.
+- Inbound messages never execute Home Assistant actions on their own.
 
 ## Compatibility
 
-Gotify MU intentionally preserves Gotify's application-token message API. This integration sends JSON to:
+The integration publishes through Gotify's compatible API:
 
 ```text
 POST /message
 X-Gotify-Key: <application-token>
 ```
 
-so the integration remains compatible with Gotify MU while using the same stable publishing interface as standard Gotify.
+Gotify MU-specific capabilities are additive. Outbound-only operation remains compatible with Gotify-style servers that do not expose the MU identity endpoint.
 
-## Security
+## Development
 
-Application tokens are stored in Home Assistant's config-entry storage. They are not written to `configuration.yaml`.
+The repository includes:
 
-Use HTTPS for remote Gotify MU servers. Disable TLS verification only for trusted private-network deployments where certificate verification is intentionally unavailable.
+- Python compile and JSON validation
+- Ruff linting
+- Hassfest validation
+- Home Assistant config-flow tests
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 
