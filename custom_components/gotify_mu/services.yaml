@@ -3,11 +3,12 @@ send:
   description: Send a notification through a configured Gotify MU channel.
   fields:
     entry_id:
-      name: Config entry ID
-      description: Optional Gotify MU config entry ID. If omitted, the first configured instance is used.
+      name: Gotify MU entry
+      description: The configured Gotify MU channel. If omitted, the first loaded entry is used.
       required: false
       selector:
-        text:
+        config_entry:
+          integration: gotify_mu
     title:
       name: Title
       required: false
@@ -27,6 +28,7 @@ send:
         number:
           min: 0
           max: 10
+          step: 1
           mode: slider
     markdown:
       name: Markdown
