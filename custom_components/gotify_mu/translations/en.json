@@ -13,7 +13,7 @@
           "verify_ssl": "Verify TLS certificate"
         },
         "data_description": {
-          "server_url": "Base URL of the Gotify MU server, for example https://push.example.com.",
+          "server_url": "Base URL of the Gotify MU server.",
           "app_token": "Application token for the Channel used by Home Assistant to send messages.",
           "client_token": "Optional Gotify MU client token. Required only for realtime inbound/two-way messages.",
           "verify_ssl": "Disable only for a trusted private server using a self-signed or otherwise untrusted certificate."
