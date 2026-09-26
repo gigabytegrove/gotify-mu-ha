@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows:
+      - Validate
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Read integration version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("custom_components/gotify_mu/manifest.json").read_text())
+          print(manifest["version"])
+          PY
+          )"
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build release package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f gotify_mu.zip SHA256SUMS
+          (
+            cd custom_components
+            zip -qr ../gotify_mu.zip gotify_mu               -x '*/__pycache__/*' '*.pyc'
+          )
+          sha256sum gotify_mu.zip > SHA256SUMS
+          unzip -t gotify_mu.zip
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" "$VALIDATED_SHA" -m "Gotify MU for Home Assistant $TAG"
+            git push origin "$TAG"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" gotify_mu.zip SHA256SUMS --clobber
+            exit 0
+          fi
+
+          PRERELEASE=()
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE=(--prerelease)
+          fi
+
+          gh release create "$TAG"             gotify_mu.zip SHA256SUMS             --title "Gotify MU for Home Assistant $TAG"             --notes "See CHANGELOG.md for release details. This release was created from validated commit $VALIDATED_SHA."             "${PRERELEASE[@]}"
