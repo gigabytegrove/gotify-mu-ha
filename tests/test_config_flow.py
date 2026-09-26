@@ -57,7 +57,7 @@ async def test_current_mu_server_identifies_channel_automatically(hass, aioclien
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Home Assistant"
-    assert result["unique_id"] == f"{SERVER}|channel:7"
+    assert result["result"].unique_id == f"{SERVER}|channel:7"
     assert result["data"][CONF_CHANNEL_ID] == 7
     assert result["data"][CONF_CHANNEL_NAME] == "Home Assistant"
     assert CONF_CLIENT_TOKEN not in result["data"]
@@ -90,7 +90,7 @@ async def test_legacy_server_outbound_only_uses_safe_validation(hass, aioclient_
     assert result["title"] == "Home Assistant"
     assert result["data"][CONF_SERVER_URL] == SERVER
     assert CONF_CLIENT_TOKEN not in result["data"]
-    assert APP_TOKEN not in result["unique_id"]
+    assert APP_TOKEN not in result["result"].unique_id
 
 
 async def test_legacy_server_client_token_enables_channel_discovery(
@@ -120,7 +120,7 @@ async def test_legacy_server_client_token_enables_channel_discovery(
         result["flow_id"], {CONF_CHANNEL_ID: "7"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["unique_id"] == f"{SERVER}|channel:7"
+    assert result["result"].unique_id == f"{SERVER}|channel:7"
     assert result["data"][CONF_CLIENT_TOKEN] == CLIENT_TOKEN
     assert result["options"][CONF_INBOUND_ENABLED] is True
 
