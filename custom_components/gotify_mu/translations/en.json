@@ -112,7 +112,7 @@
         },
         "data_description": {
           "native_pairing_code": "One-time code in the form 12.random-secret.",
-          "home_assistant_url": "Base URL that the Gotify MU server can reach, for example https://homeassistant.example. This is requested only when Home Assistant cannot determine a usable URL automatically."
+          "home_assistant_url": "Base URL that the Gotify MU server can reach. This is requested only when Home Assistant cannot determine a usable URL automatically."
         }
       },
       "native_remove": {
