@@ -1,10 +1,12 @@
 {
   "domain": "gotify_mu",
   "name": "Gotify MU",
-  "codeowners": [],
+  "codeowners": ["@bradjtrammell"],
   "config_flow": true,
   "documentation": "https://github.com/gigabytegrove/gotify-mu-ha",
+  "issue_tracker": "https://github.com/gigabytegrove/gotify-mu-ha/issues",
   "integration_type": "service",
-  "iot_class": "cloud_push",
-  "version": "0.1.0"
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "0.2.0"
 }
