@@ -61,6 +61,16 @@ class GotifyMUChannel:
     description: str = ""
     allow_member_post: bool = False
     auto_assign: bool = False
+    role: str = ""
+    channel_type: str = ""
+    receive_notifications: bool | None = None
+
+    @property
+    def can_post(self) -> bool:
+        """Return whether the current client-token user may post to this Channel."""
+        if self.role in {"owner", "manager", "publisher"}:
+            return True
+        return self.role == "member" and self.allow_member_post
 
 
 @dataclass(slots=True)
@@ -69,7 +79,7 @@ class GotifyMUClient:
 
     session: ClientSession
     server_url: str
-    app_token: str
+    app_token: str = ""
     verify_ssl: bool = True
     client_token: str | None = None
 
@@ -151,6 +161,13 @@ class GotifyMUClient:
             description=str(data.get("description", "")),
             allow_member_post=bool(data.get("allowMemberPost", False)),
             auto_assign=bool(data.get("autoAssign", False)),
+            role=str(data.get("role", "")),
+            channel_type=str(data.get("channelType", "")),
+            receive_notifications=(
+                bool(data["receiveNotifications"])
+                if "receiveNotifications" in data
+                else None
+            ),
         )
 
     async def async_health(self) -> dict[str, Any]:
@@ -194,6 +211,8 @@ class GotifyMUClient:
         so a valid token returns HTTP 400 before message persistence while an
         invalid token returns HTTP 401/403.
         """
+        if not self.app_token:
+            raise GotifyMUAuthError("No Monita application token is configured")
         try:
             async with self.session.get(
                 f"{self.server_url}/application/current",
@@ -292,6 +311,10 @@ class GotifyMUClient:
         content_type: str,
     ) -> GotifyMUAttachment:
         """Upload image bytes to the staged attachment endpoint."""
+        if not self.app_token:
+            raise GotifyMUError(
+                "Image uploads require a Channel application token on this server"
+            )
         form = FormData()
         form.add_field(
             "file",
@@ -356,12 +379,33 @@ class GotifyMUClient:
         markdown: bool = False,
         extras: dict[str, Any] | None = None,
         attachment_ids: list[int] | None = None,
+        channel_id: int | None = None,
     ) -> dict[str, Any]:
-        """Send a notification through the Gotify-compatible message API."""
+        """Send a notification through the Gotify-compatible message API.
+
+        When channel_id is supplied, Monita client-token authentication is used
+        and appid selects the destination Channel. This is the preferred path
+        for server-centric, multi-Channel Home Assistant entries.
+        """
         payload: dict[str, Any] = {
             "message": message,
             "priority": priority,
         }
+        if channel_id is not None:
+            if not self.client_token:
+                raise GotifyMUAuthError(
+                    "A Monita client token is required to push to a selected Channel"
+                )
+            payload["appid"] = int(channel_id)
+            token = self.client_token
+            auth_context = "client token"
+        else:
+            if not self.app_token:
+                raise GotifyMUAuthError(
+                    "No Monita application token is configured for this legacy send"
+                )
+            token = self.app_token
+            auth_context = "application token"
         if title:
             payload["title"] = title
         if attachment_ids:
@@ -381,12 +425,16 @@ class GotifyMUClient:
         try:
             async with self.session.post(
                 f"{self.server_url}/message",
-                headers=self._headers(self.app_token),
+                headers=self._headers(token),
                 json=payload,
                 ssl=self.verify_ssl,
                 timeout=self._timeout,
             ) as response:
-                await self._raise_for_status(response, auth_context="application token")
+                if channel_id is not None and response.status == 403:
+                    raise GotifyMUError(
+                        "Monita does not allow this account to post to the selected Channel"
+                    )
+                await self._raise_for_status(response, auth_context=auth_context)
                 data = await self._read_json(response)
                 return data if isinstance(data, dict) else {}
         except GotifyMUError:
