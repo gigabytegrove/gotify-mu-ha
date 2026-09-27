@@ -1,4 +1,4 @@
-"""Image acquisition helpers for Gotify MU notifications."""
+"""Image acquisition helpers for Monita notifications."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ _SUPPORTED_CONTENT_TYPES = {
 
 @dataclass(frozen=True, slots=True)
 class GotifyMUImage:
-    """Validated image ready to be staged on Gotify MU."""
+    """Validated image ready to be staged on Monita."""
 
     content: bytes
     filename: str
