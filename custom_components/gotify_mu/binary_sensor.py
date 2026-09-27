@@ -1,4 +1,4 @@
-"""Connection status binary sensors for Gotify MU."""
+"""Connection status binary sensors for Monita."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ async def async_setup_entry(
     entry: GotifyMUConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Gotify MU connection status entities."""
+    """Set up Monita connection status entities."""
     entities: list[BinarySensorEntity] = []
     if entry.runtime_data.inbound_enabled:
         entities.append(GotifyMUConnectionBinarySensor(entry))
@@ -29,7 +29,7 @@ async def async_setup_entry(
 
 
 class _GotifyMUBaseConnectionSensor(BinarySensorEntity):
-    """Shared Gotify MU connection sensor device metadata."""
+    """Shared Monita connection sensor device metadata."""
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
@@ -39,7 +39,7 @@ class _GotifyMUBaseConnectionSensor(BinarySensorEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
             name=entry.runtime_data.channel_name,
-            manufacturer="Gotify MU",
+            manufacturer="Monita",
             model="Notification Channel",
             configuration_url=entry.data[CONF_SERVER_URL],
         )
@@ -86,7 +86,7 @@ class GotifyMUConnectionBinarySensor(_GotifyMUBaseConnectionSensor):
 
 
 class GotifyMUNativeBridgeBinarySensor(_GotifyMUBaseConnectionSensor):
-    """Represent native Gotify MU bridge health."""
+    """Represent native Monita bridge health."""
 
     _attr_translation_key = "native_bridge"
 
