@@ -1,11 +1,11 @@
 {
-  "title": "Gotify MU",
+  "title": "Monita for Home Assistant",
   "config": {
     "flow_title": "{name}",
     "step": {
       "user": {
-        "title": "Connect to Gotify MU",
-        "description": "Enter the Channel application token used by Home Assistant to send notifications. Optionally add a client token to enable realtime inbound messages. Current Gotify MU servers identify the Channel automatically.",
+        "title": "Connect to Monita",
+        "description": "Enter the Channel application token used by Home Assistant to send notifications. Optionally add a client token to enable realtime inbound messages. Current Monita servers identify the Channel automatically.",
         "data": {
           "server_url": "Server URL",
           "app_token": "Application token",
@@ -13,14 +13,14 @@
           "verify_ssl": "Verify TLS certificate"
         },
         "data_description": {
-          "server_url": "Base URL of the Gotify MU server.",
+          "server_url": "Base URL of the Monita server.",
           "app_token": "Application token for the Channel used by Home Assistant to send messages.",
-          "client_token": "Optional Gotify MU client token. Required only for realtime inbound/two-way messages.",
+          "client_token": "Optional Monita client token. Required only for realtime inbound/two-way messages.",
           "verify_ssl": "Disable only for a trusted private server using a self-signed or otherwise untrusted certificate."
         }
       },
       "channel": {
-        "title": "Choose the Gotify MU Channel",
+        "title": "Choose the Monita Channel",
         "description": "This server does not expose application-token identity. If a client token was supplied, choose the Channel associated with the application token. Otherwise enter a display name.",
         "data": {
           "channel_id": "Channel",
@@ -28,8 +28,8 @@
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate Gotify MU",
-        "description": "The stored Gotify MU credentials are no longer accepted. Replace the application token and, if needed, the client token.",
+        "title": "Reauthenticate Monita",
+        "description": "The stored Monita credentials are no longer accepted. Replace the application token and, if needed, the client token.",
         "data": {
           "app_token": "Application token",
           "client_token": "Replacement client token (optional)",
@@ -41,8 +41,8 @@
         }
       },
       "reconfigure": {
-        "title": "Reconfigure Gotify MU",
-        "description": "Update network, display, and optional inbound-message settings for this Gotify MU Channel.",
+        "title": "Reconfigure Monita",
+        "description": "Update network, display, and optional inbound-message settings for this Monita Channel.",
         "data": {
           "server_url": "Server URL",
           "channel_name": "Channel name",
@@ -57,26 +57,26 @@
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to Gotify MU.",
-      "invalid_auth": "Gotify MU rejected the supplied credentials.",
-      "invalid_url": "Enter a valid http:// or https:// Gotify MU server URL.",
-      "rate_limited": "Gotify MU rate limited the validation request. Try again shortly.",
-      "channel_not_accessible": "The configured client token cannot access this Gotify MU Channel.",
-      "wrong_channel": "The application token belongs to a different Gotify MU Channel."
+      "cannot_connect": "Could not connect to Monita.",
+      "invalid_auth": "Monita rejected the supplied credentials.",
+      "invalid_url": "Enter a valid http:// or https:// Monita server URL.",
+      "rate_limited": "Monita rate limited the validation request. Try again shortly.",
+      "channel_not_accessible": "The configured client token cannot access this Monita Channel.",
+      "wrong_channel": "The application token belongs to a different Monita Channel."
     },
     "abort": {
-      "already_configured": "This Gotify MU Channel is already configured.",
-      "reauth_successful": "Gotify MU authentication was updated successfully.",
-      "reconfigure_successful": "Gotify MU was reconfigured successfully.",
+      "already_configured": "This Monita Channel is already configured.",
+      "reauth_successful": "Monita authentication was updated successfully.",
+      "reconfigure_successful": "Monita was reconfigured successfully.",
       "setup_state_lost": "Setup state was lost. Start the integration setup again.",
-      "channel_not_found": "The selected Gotify MU Channel is no longer available.",
-      "unique_id_mismatch": "The supplied settings identify a different Gotify MU Channel."
+      "channel_not_found": "The selected Monita Channel is no longer available.",
+      "unique_id_mismatch": "The supplied settings identify a different Monita Channel."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Gotify MU options",
+        "title": "Monita options",
         "description": "Native pairing status: {native_state}. Choose what you want to manage.",
         "menu_options": {
           "settings": "Notifications and inbound messages",
@@ -84,7 +84,7 @@
         }
       },
       "settings": {
-        "title": "Gotify MU options",
+        "title": "Monita options",
         "description": "Control notification priority and realtime inbound message handling.",
         "data": {
           "default_priority": "Default priority",
@@ -92,22 +92,22 @@
         },
         "data_description": {
           "default_priority": "Default Gotify priority used by the notify entity.",
-          "inbound_enabled": "Maintain a Gotify MU WebSocket connection and expose incoming Channel messages as a Home Assistant event entity."
+          "inbound_enabled": "Maintain a Monita WebSocket connection and expose incoming Channel messages as a Home Assistant event entity."
         }
       },
       "native_pairing": {
         "title": "Native Home Assistant pairing",
-        "description": "Status: Paired. The native bridge can exchange Home Assistant events with Gotify MU without a Home Assistant Long-Lived Access Token.",
+        "description": "Status: Paired. The native bridge can exchange Home Assistant events with Monita without a Home Assistant Long-Lived Access Token.",
         "menu_options": {
           "native_repair": "Repair pairing",
           "native_remove": "Remove pairing"
         }
       },
       "native_pair": {
-        "title": "Pair with Gotify MU server",
-        "description": "Enter the one-time pairing code generated by Gotify MU. The code expires after 15 minutes and can only be used once. Home Assistant detected {auto_url}; leave the Home Assistant URL blank to use it, or enter an override that Gotify MU can reach.",
+        "title": "Pair with Monita server",
+        "description": "Enter the one-time pairing code generated by Monita. The code expires after 15 minutes and can only be used once. Home Assistant detected {auto_url}; leave the Home Assistant URL blank to use it, or enter an override that Monita can reach.",
         "data": {
-          "native_pairing_code": "Gotify MU pairing code",
+          "native_pairing_code": "Monita pairing code",
           "home_assistant_url": "Home Assistant URL"
         },
         "data_description": {
@@ -117,27 +117,27 @@
       },
       "native_remove": {
         "title": "Remove native pairing",
-        "description": "Home Assistant will revoke the native bridge on Gotify MU before removing its local credentials. The normal Gotify MU notification integration remains configured.",
+        "description": "Home Assistant will revoke the native bridge on Monita before removing its local credentials. The normal Monita notification integration remains configured.",
         "data": {
           "confirm": "Remove native pairing",
           "force_local_remove": "Force local removal if remote revoke fails"
         },
         "data_description": {
-          "force_local_remove": "Recovery option only. This removes Home Assistant's local native credentials even if Gotify MU cannot be reached or rejects the stored bridge secret."
+          "force_local_remove": "Recovery option only. This removes Home Assistant's local native credentials even if Monita cannot be reached or rejects the stored bridge secret."
         }
       }
     },
     "error": {
-      "invalid_pairing_code": "The Gotify MU pairing code is invalid or was already used.",
-      "pairing_expired": "The Gotify MU pairing code has expired. Generate a new code in Gotify MU.",
-      "pairing_failed": "Gotify MU could not complete native pairing. Generate a new pairing code and try again.",
-      "invalid_ha_url": "Enter a valid http:// or https:// Home Assistant URL reachable by Gotify MU.",
-      "cannot_connect": "Could not connect to Gotify MU to complete native pairing.",
-      "rate_limited": "Gotify MU rate limited the pairing request. Try again shortly.",
-      "unpair_auth_failed": "Gotify MU rejected the stored native bridge credential. Repair pairing first, or use force local removal if the remote connection has already been replaced.",
-      "unpair_not_found": "Gotify MU could not find the native bridge revoke endpoint or connection. Upgrade Gotify MU, or use force local removal only if you have removed the remote connection separately.",
-      "cannot_unpair": "Could not reach Gotify MU to revoke the native bridge. Try again, or use force local removal only if you will clean up the remote connection separately.",
-      "unpair_failed": "Gotify MU could not revoke the native bridge."
+      "invalid_pairing_code": "The Monita pairing code is invalid or was already used.",
+      "pairing_expired": "The Monita pairing code has expired. Generate a new code in Monita.",
+      "pairing_failed": "Monita could not complete native pairing. Generate a new pairing code and try again.",
+      "invalid_ha_url": "Enter a valid http:// or https:// Home Assistant URL reachable by Monita.",
+      "cannot_connect": "Could not connect to Monita to complete native pairing.",
+      "rate_limited": "Monita rate limited the pairing request. Try again shortly.",
+      "unpair_auth_failed": "Monita rejected the stored native bridge credential. Repair pairing first, or use force local removal if the remote connection has already been replaced.",
+      "unpair_not_found": "Monita could not find the native bridge revoke endpoint or connection. Upgrade Monita, or use force local removal only if you have removed the remote connection separately.",
+      "cannot_unpair": "Could not reach Monita to revoke the native bridge. Try again, or use force local removal only if you will clean up the remote connection separately.",
+      "unpair_failed": "Monita could not revoke the native bridge."
     }
   },
   "entity": {
@@ -163,13 +163,13 @@
   "services": {
     "send": {
       "name": "Send notification",
-      "description": "Send a text, Markdown, or hosted image notification through a configured Gotify MU Channel."
+      "description": "Send a text, Markdown, or hosted image notification through a configured Monita Channel."
     }
   },
   "issues": {
     "native_bridge_auth_failed": {
-      "title": "Gotify MU native bridge needs repair",
-      "description": "Gotify MU rejected the stored native bridge credential for {name}. Open Settings → Devices & services → Gotify MU, choose Configure → Native Home Assistant pairing → Repair pairing, generate a new one-time pairing code in Gotify MU, and pair the connection again."
+      "title": "Monita native bridge needs repair",
+      "description": "Monita rejected the stored native bridge credential for {name}. Open Settings → Devices & services → Monita, choose Configure → Native Home Assistant pairing → Repair pairing, generate a new one-time pairing code in Monita, and pair the connection again."
     }
   }
 }
