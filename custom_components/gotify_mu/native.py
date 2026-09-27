@@ -1,4 +1,4 @@
-"""Native Home Assistant bridge support for Gotify MU."""
+"""Native Home Assistant bridge support for Monita."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ class GotifyMUNativePairingError(GotifyMUNativeError):
 
 @dataclass(frozen=True, slots=True)
 class NativePairingResult:
-    """Native pairing credentials returned by Gotify MU."""
+    """Native pairing credentials returned by Monita."""
 
     integration_id: int
     secret: str
@@ -126,7 +126,7 @@ async def async_pair_native(
     pairing_code: str,
     webhook_url: str,
 ) -> NativePairingResult:
-    """Exchange a one-time Gotify MU pairing code for bridge credentials."""
+    """Exchange a one-time Monita pairing code for bridge credentials."""
     try:
         async with session.post(
             f"{server_url.rstrip('/')}{NATIVE_PAIR_PATH}",
@@ -182,7 +182,7 @@ async def async_revoke_native(
     integration_id: int,
     secret: str,
 ) -> None:
-    """Revoke a native bridge on Gotify MU before clearing local credentials."""
+    """Revoke a native bridge on Monita before clearing local credentials."""
     try:
         async with session.delete(
             f"{server_url.rstrip('/')}/integrations/home-assistant/native/{integration_id}",
@@ -225,7 +225,7 @@ async def async_handle_native_webhook(
     suppress_context_ids: set[str] | None = None,
     on_received: Callable[[], None] | None = None,
 ) -> web.Response:
-    """Validate and deliver one Gotify MU -> Home Assistant event."""
+    """Validate and deliver one Monita -> Home Assistant event."""
     supplied = _bearer_token(request)
     if supplied is None or not secrets.compare_digest(supplied, secret):
         return web.Response(status=401)
@@ -275,11 +275,11 @@ class PendingNativeWebhook:
 
     @callback
     def async_register(self) -> None:
-        """Register the temporary endpoint before contacting Gotify MU."""
+        """Register the temporary endpoint before contacting Monita."""
         webhook.async_register(
             self._hass,
             DOMAIN,
-            "Gotify MU native pairing",
+            "Monita native pairing",
             self._webhook_id,
             self._async_handle,
             local_only=False,
@@ -359,7 +359,7 @@ class GotifyMUNativeBridge:
 
     @property
     def repair_required(self) -> bool:
-        """Return whether Gotify MU rejected the stored native credential."""
+        """Return whether Monita rejected the stored native credential."""
         return self.status == "repair_required"
 
     @property
@@ -428,7 +428,7 @@ class GotifyMUNativeBridge:
         webhook.async_register(
             self._hass,
             DOMAIN,
-            f"Gotify MU native bridge: {self._name}",
+            f"Monita native bridge: {self._name}",
             self._webhook_id,
             self._async_handle_webhook,
             local_only=False,
@@ -438,7 +438,7 @@ class GotifyMUNativeBridge:
             MATCH_ALL, self._async_queue_event
         )
         self._worker = self._hass.async_create_background_task(
-            self._async_worker(), f"Gotify MU native bridge: {self._name}"
+            self._async_worker(), f"Monita native bridge: {self._name}"
         )
 
     async def _async_handle_webhook(
@@ -484,7 +484,7 @@ class GotifyMUNativeBridge:
                     self.dropped_events += 1
                     self._async_mark_degraded(str(err))
                     _LOGGER.debug(
-                        "Gotify MU native event delivery failed for %s: %s",
+                        "Monita native event delivery failed for %s: %s",
                         self._name,
                         err,
                     )
@@ -553,7 +553,7 @@ class GotifyMUNativeBridge:
             ) as response:
                 if 200 <= response.status < 300:
                     return _NativeDeliveryResult(success=True)
-                error = f"Gotify MU returned HTTP {response.status} for native event delivery"
+                error = f"Monita returned HTTP {response.status} for native event delivery"
                 if response.status in (401, 403):
                     return _NativeDeliveryResult(
                         success=False,
@@ -571,7 +571,7 @@ class GotifyMUNativeBridge:
             return _NativeDeliveryResult(
                 success=False,
                 retryable=True,
-                error=f"Could not connect to Gotify MU: {err}",
+                error=f"Could not connect to Monita: {err}",
             )
 
     @callback
