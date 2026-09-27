@@ -263,7 +263,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         origin.update(
             {
                 "entry_id": selected.entry_id,
-                "source": "gotify-mu-ha",
+                "source": "monita-ha",
             }
         )
         extras[INTEGRATION_ORIGIN_EXTRA] = origin
