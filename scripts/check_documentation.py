@@ -1,4 +1,4 @@
-"""Verify that user-facing Gotify MU features remain documented."""
+"""Verify that user-facing Monita features remain documented."""
 
 from __future__ import annotations
 
