@@ -1,8 +1,8 @@
 # Monita for Home Assistant branding
 
-Monita for Home Assistant is the successor brand to **Gotify-MU for Home Assistant**.
+**Monita for Home Assistant** is the active identity for the integration formerly known as **Gotify-MU for Home Assistant**.
 
-The artwork supplied for the Monita rebrand is the authoritative visual identity for this integration. During the transition, the Home Assistant integration domain remains `gotify_mu` so existing installations, entities, services, config entries, and automations continue to work.
+The supplied Monita artwork and palette are the authoritative visual baseline.
 
 ## Brand palette
 
@@ -12,33 +12,27 @@ The artwork supplied for the Monita rebrand is the authoritative visual identity
 - Slate — `#0F172A`
 - Gray — `#9CA3B8`
 
-## Canonical Monita assets
+## Active assets
 
-The rebrand uses:
+- `monita-ha-icon.png` — canonical Monita for Home Assistant integration icon
+- `monita-ha-logo.png` — canonical active logo asset
+- `icon.png` — Home Assistant/HACS compatibility alias
+- `logo.png` — Home Assistant/HACS compatibility alias
 
-- `monita-ha-banner.png` — horizontal Monita for Home Assistant banner
-- `monita-ha-logo.png` — full Monita for Home Assistant logo
-- `monita-ha-icon.png` — square Monita for Home Assistant app/integration icon
+The compatibility aliases are byte-identical to their Monita canonical counterparts.
 
-Home Assistant/repository compatibility aliases remain:
+Legacy Gotify-MU artwork has been removed from the active tree. Git history preserves it for provenance.
 
-- `banner.png`
-- `logo.png`
-- `icon.png`
+## Compatibility rule
 
-The aliases must be byte-identical to their Monita canonical counterparts.
-
-## Legacy artwork
-
-Files named `gotify-mu-ha-*.png` are historical pre-Monita assets. They may remain in Git history for provenance, but they are no longer the active product identity once the Monita assets are committed.
+The visual/product identity is Monita. The Home Assistant technical domain remains `gotify_mu` in this release only to preserve existing config entries, service calls, entities, automations, and HACS upgrades.
 
 ## Preservation rule
 
-Do not regenerate, redraw, recolor, reinterpret, or silently replace the approved Monita artwork during normal feature, bug-fix, documentation, CI, packaging, or release work.
+Do not regenerate, redraw, recolor, reinterpret, or silently replace approved Monita artwork during ordinary feature, bug-fix, documentation, CI, packaging, or release work.
 
-A branding change must be an intentional branding-specific change using artwork explicitly approved for Monita.
+Any future branding change must be explicit and must update `.github/branding-lock.json`.
 
 ## CI enforcement
 
-The exact approved active branding is locked in `.github/branding-lock.json`.
-`scripts/check_branding.py` verifies canonical asset hashes and dimensions and verifies that the Home Assistant compatibility aliases remain byte-for-byte identical.
+`scripts/check_branding.py` verifies the approved asset hashes, dimensions, and compatibility aliases.
