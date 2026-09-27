@@ -1,0 +1,887 @@
+# Gotify MU for Home Assistant — Complete Feature & Usage Guide
+
+This is the canonical user-facing guide for every supported Gotify MU for Home Assistant feature.
+
+The integration is designed around three separate paths:
+
+1. **Outbound notifications** — Home Assistant publishes to a Gotify MU Channel with an application token.
+2. **Realtime inbound Channel messages** — Home Assistant listens to Gotify MU with an optional client token.
+3. **Native Home Assistant bridge** — an optional paired, authenticated event bridge between Home Assistant and Gotify MU.
+
+These paths are additive. You can use outbound notifications alone, add inbound messages later, and pair the native bridge independently.
+
+---
+
+## 1. Connection and credential model
+
+Each Home Assistant config entry represents one Gotify MU Channel.
+
+Required for normal outbound notifications:
+
+- Gotify MU server URL
+- Channel application token
+
+Optional:
+
+- Gotify MU client token, required only for realtime inbound Channel messages
+- Native pairing, required only for the bidirectional native Home Assistant event bridge
+
+The application token remains the publishing credential for:
+
+- the standard Home Assistant notify entity
+- `gotify_mu.send`
+- staged image uploads
+
+Native pairing does not replace the application token.
+
+### Application token validation
+
+On current Gotify MU servers, the integration uses the application identity endpoint to identify the exact Channel associated with the application token.
+
+This provides:
+
+- stable Channel identity
+- automatic Channel naming
+- duplicate-entry protection
+- protection against accidentally replacing an entry with a token belonging to another Channel
+
+On older Gotify-compatible servers without the identity endpoint, the integration uses a safe validation fallback that does not create a visible test notification.
+
+### Client token validation
+
+If a client token is supplied, the integration verifies that the token belongs to a user who can access the configured Channel.
+
+A client token is never required for outbound-only use.
+
+---
+
+## 2. Multiple Channels
+
+To connect Home Assistant to multiple Gotify MU Channels, add the integration more than once.
+
+Example:
+
+- Security
+- Home
+- Greenhouse
+- Server Alerts
+
+Each entry gets its own:
+
+- notify entity
+- Channel identity
+- application token
+- optional client token
+- inbound message event entity when enabled
+- inbound connection sensor when enabled
+- optional native bridge
+
+When using `gotify_mu.send`, choose a specific config entry with `entry_id`.
+
+If `entry_id` is omitted, the first loaded Gotify MU entry is used.
+
+For production automations with multiple entries, explicitly select the intended entry.
+
+---
+
+## 3. Standard Home Assistant notify entity
+
+Every configured Gotify MU Channel creates a standard Home Assistant notify entity.
+
+Use this when you need ordinary Home Assistant text/title notification behavior.
+
+Example:
+
+```yaml
+action:
+  - action: notify.send_message
+    target:
+      entity_id: notify.gotify_mu_notifications
+    data:
+      title: "Home"
+      message: "Home Assistant is online."
+```
+
+The exact entity ID is assigned by Home Assistant. Use the entity picker rather than assuming the example ID.
+
+### Default priority
+
+The notify entity uses the integration's configured **Default priority**.
+
+Configure it from:
+
+**Settings → Devices & services → Gotify MU → Configure → Notifications and inbound messages**
+
+Priority range:
+
+- 0 through 10
+
+The default is 5.
+
+### What the standard notify entity does not do
+
+The standard notify entity intentionally remains a stable text/title path.
+
+For:
+
+- image notifications
+- per-message priority
+- Markdown
+- advanced Gotify extras
+
+use `gotify_mu.send`.
+
+---
+
+## 4. `gotify_mu.send` action
+
+`gotify_mu.send` is the full Gotify MU publishing action.
+
+Supported fields:
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| `message` | Yes | Notification/message body |
+| `title` | No | Notification title |
+| `priority` | No | Per-message Gotify priority from 0–10 |
+| `markdown` | No | Enables Gotify Markdown display extras |
+| `entry_id` | No | Selects a specific Gotify MU config entry |
+| `image_entity` | No | Captures a current `camera.*` or `image.*` image |
+| `image_url` | No | Downloads an HTTP/HTTPS image inside Home Assistant |
+| `extras` | No | Advanced caller-supplied Gotify extras |
+
+`image_entity` and `image_url` are mutually exclusive.
+
+### Basic example
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Server"
+      message: "Backup completed."
+```
+
+### Priority example
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Critical Alert"
+      message: "UPS is on battery."
+      priority: 10
+```
+
+### Markdown example
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Greenhouse"
+      message: "**Temperature is above 100°F.**"
+      priority: 8
+      markdown: true
+```
+
+### Advanced extras
+
+Caller-supplied extras are preserved.
+
+The integration also adds its origin marker:
+
+```json
+{
+  "homeassistant::gotify_mu": {
+    "entry_id": "...",
+    "source": "gotify-mu-ha"
+  }
+}
+```
+
+If the caller already supplied other extras, they are merged rather than replaced.
+
+When Markdown is enabled, the normal Gotify `client::display` Markdown extra is also added unless the caller already provided one.
+
+---
+
+## 5. Image notifications
+
+Image notifications are designed for cameras, doorbells, snapshots, dashboards, and other security/home-automation events where the image must still work when the phone is away from the Home Assistant LAN.
+
+The integration does **not** simply pass a Home Assistant camera URL to the phone.
+
+Instead:
+
+```text
+Home Assistant captures/downloads image
+        ↓
+Home Assistant validates image bytes
+        ↓
+Home Assistant uploads image to Gotify MU
+        ↓
+Gotify MU stages/hosts the attachment
+        ↓
+Message is created with attachmentIds
+        ↓
+Web / Android / Channel history use the Gotify MU-hosted image
+```
+
+This means the phone does not need direct access to:
+
+- Home Assistant
+- the camera
+- a private camera URL
+- the original image source URL
+
+### Camera usability
+
+For a live camera frame, use `image_entity` with a `camera.*` entity.
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Front Door"
+      message: "Someone is at the door."
+      priority: 8
+      image_entity: camera.front_door
+```
+
+When the automation runs, Home Assistant requests a fresh camera image at that moment.
+
+Use this for:
+
+- doorbell person detection
+- driveway motion
+- package detection
+- gate cameras
+- garage cameras
+- security alerts
+
+### Doorbell example
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Doorbell"
+      message: "Person detected."
+      priority: 9
+      image_entity: camera.front_door
+```
+
+Expected behavior with a compatible Gotify MU server/client stack:
+
+1. Home Assistant retrieves the current camera frame.
+2. Home Assistant uploads the actual image bytes to Gotify MU.
+3. Gotify MU creates the message with the staged attachment.
+4. Gotify MU Web shows the image with the message.
+5. Gotify MU Android history shows the same image.
+6. Android can use the first image as the notification's Big Image.
+7. The image remains reachable while the phone is on cellular.
+8. Protected Channel notification-redaction rules remain a client/server concern and are not bypassed by Home Assistant.
+
+### Home Assistant `image.*` entities
+
+The same field supports current Home Assistant image entities.
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Latest Snapshot"
+      message: "A new snapshot is available."
+      image_entity: image.latest_snapshot
+```
+
+Home Assistant retrieves the image through its supported image entity API.
+
+The integration does not read arbitrary filesystem paths supplied by the service caller.
+
+### Advanced `image_url`
+
+Use `image_url` when the source is an HTTP or HTTPS image.
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Driveway"
+      message: "Motion detected."
+      priority: 7
+      image_url: "https://camera.example.com/current.jpg"
+```
+
+Home Assistant downloads the image first and then uploads the bytes to Gotify MU.
+
+The original URL is not used as the phone-facing attachment.
+
+This is useful for:
+
+- authenticated image-producing services reachable by Home Assistant
+- local HTTP snapshot endpoints
+- temporary signed image URLs
+- external image generators
+
+### Image safety and validation
+
+For `image_url`, the integration:
+
+- permits HTTP and HTTPS only
+- uses Home Assistant's shared aiohttp session
+- honors the entry's TLS verification setting
+- follows HTTP redirects
+- rejects redirects to unsupported URL schemes
+- limits the image to 10 MiB
+- validates the response MIME type
+- validates the actual image byte signature
+- rejects HTML or login/error pages pretending to be images
+- does not place the source URL in Gotify extras
+- avoids exposing secret query-string values in integration error messages
+
+Supported image types:
+
+- JPEG
+- PNG
+- GIF
+- WebP
+
+### Failure behavior
+
+Image requests fail closed.
+
+If the user asks for an image and any of these fail:
+
+- camera capture
+- image entity retrieval
+- URL download
+- image validation
+- staged upload
+
+then the Home Assistant action fails.
+
+The integration does **not** silently turn:
+
+```text
+Front Door + requested image
+```
+
+into:
+
+```text
+Front Door without image
+```
+
+This is intentional because silent image loss can make security-camera automations misleading.
+
+### Staged upload contract
+
+Images are uploaded with the configured application token to:
+
+```text
+POST /application/current/attachment
+X-Gotify-Key: <application-token>
+Content-Type: multipart/form-data
+```
+
+The returned staged ID is sent through the normal message API:
+
+```json
+{
+  "attachmentIds": [123]
+}
+```
+
+Home Assistant does not manually create:
+
+- `gotify-mu::display.images`
+- `client::notification.bigImageUrl`
+- public Gotify MU media URLs
+
+Gotify MU owns those canonical fields.
+
+### Multiple-image readiness
+
+The API client already accepts a list of staged attachment IDs.
+
+The current Home Assistant service UI exposes one primary image source, but the client contract is ready for future multi-image support without redesigning the message API.
+
+---
+
+## 6. Realtime inbound Channel messages
+
+Realtime inbound messages are optional.
+
+They require a Gotify MU **client token** belonging to a user who can access the configured Channel.
+
+Enable or disable inbound streaming from:
+
+**Settings → Devices & services → Gotify MU → Configure → Notifications and inbound messages**
+
+When enabled, the integration maintains a Gotify MU WebSocket connection.
+
+### Messages event entity
+
+The integration creates a Home Assistant event entity named **Messages**.
+
+Each incoming Gotify MU message exposes:
+
+- `message_id`
+- `channel_id`
+- `title`
+- `message`
+- `priority`
+- `date`
+- `sender_user_id`
+- `sender_name`
+- `extras`
+
+Use this entity as the source for explicit Home Assistant automations.
+
+Inbound message text is never automatically interpreted as a Home Assistant command.
+
+### Loop prevention
+
+Messages sent by the same Home Assistant config entry contain the integration origin marker.
+
+The same entry ignores those messages on its inbound stream so a simple send → receive automation does not immediately trigger itself.
+
+### Inbound connection sensor
+
+When inbound messages are enabled, the integration creates an **Inbound connection** connectivity binary sensor.
+
+It exposes:
+
+- connected/disconnected state
+- reconnect count
+- most recent stream error
+
+The WebSocket automatically reconnects using bounded backoff after ordinary connection failures.
+
+Authentication failures trigger Home Assistant reauthentication instead of endlessly reconnecting with invalid credentials.
+
+---
+
+## 7. Native Home Assistant pairing
+
+Native pairing is an optional feature separate from normal notification publishing and client-token inbound messages.
+
+It creates an authenticated bidirectional event bridge:
+
+```text
+Gotify MU events → Home Assistant event bus
+Home Assistant event bus → Gotify MU
+```
+
+It does not require a Home Assistant Long-Lived Access Token.
+
+### Pairing
+
+In Gotify MU:
+
+1. Create or open a Home Assistant native connection.
+2. Generate a one-time pairing code.
+
+The pairing code has the form:
+
+```text
+12.<random-secret>
+```
+
+Then in Home Assistant:
+
+**Settings → Devices & services → Gotify MU → Configure → Native Home Assistant pairing**
+
+Enter the pairing code.
+
+Pairing codes:
+
+- are one-time use
+- expire after 15 minutes
+- are never persisted by Home Assistant
+
+### Home Assistant callback URL
+
+Home Assistant attempts to determine a reachable webhook URL automatically.
+
+The pairing screen shows the detected URL.
+
+You can override it when:
+
+- Home Assistant selected an internal URL that Gotify MU cannot reach
+- a reverse proxy URL must be used
+- routing requires a different reachable hostname
+
+If Home Assistant cannot determine a usable URL, an override is required.
+
+### Gotify MU → Home Assistant
+
+Gotify MU posts authenticated event payloads to a private Home Assistant webhook.
+
+The integration:
+
+- requires the exact Bearer secret
+- validates the event payload
+- fires the supplied event type on the Home Assistant event bus
+- never converts incoming data directly into arbitrary Home Assistant service calls
+
+### Home Assistant → Gotify MU
+
+The bridge listens to Home Assistant events and forwards them to the paired Gotify MU event endpoint.
+
+Gotify MU applies the configured routing/filtering rules on its side.
+
+The bridge suppresses immediate loopback of events that originated through its own inbound webhook.
+
+### Delivery reliability
+
+Transient Home Assistant → Gotify MU event-delivery failures use bounded retries with backoff.
+
+The bridge tracks:
+
+- queued events
+- retry count
+- dropped events
+- last successful send
+- last successful receive
+- last error
+
+A bounded queue protects Home Assistant from unbounded memory growth during extended failures.
+
+---
+
+## 8. Native bridge health sensor
+
+When native pairing is configured, the integration creates a **Native bridge** connectivity binary sensor.
+
+Its attributes include:
+
+- `status`
+- `repair_required`
+- `queued_events`
+- `retry_count`
+- `dropped_events`
+- `last_sent_at`
+- `last_received_at`
+- `last_error`
+
+Possible operational states include:
+
+- paired
+- connected
+- degraded
+- repair required
+
+Use this sensor to monitor native integration health in dashboards or automations.
+
+---
+
+## 9. Repairing native pairing
+
+If Gotify MU rejects the stored native bridge credential, the integration marks the bridge as requiring repair.
+
+Home Assistant also creates a Repairs issue.
+
+To repair:
+
+**Settings → Devices & services → Repairs**
+
+or:
+
+**Settings → Devices & services → Gotify MU → Configure → Native Home Assistant pairing → Repair pairing**
+
+Generate a new one-time pairing code in Gotify MU and pair again.
+
+Repairing native pairing does not delete or replace:
+
+- the application token
+- the standard notify entity
+- `gotify_mu.send`
+- the optional client token
+- the normal Gotify MU config entry
+
+The Repairs issue clears automatically after successful recovery.
+
+---
+
+## 10. Removing native pairing
+
+Native pairing can be removed independently from the normal Gotify MU integration.
+
+Normal removal:
+
+1. Home Assistant authenticates to Gotify MU with the stored bridge secret.
+2. Gotify MU revokes the native connection.
+3. Home Assistant removes the local native bridge credentials.
+4. The normal notification integration remains configured.
+
+### Force local removal
+
+A recovery-only **Force local removal** option is available when:
+
+- the remote connection was already deleted
+- the bridge credential was replaced
+- Gotify MU is unreachable
+- remote revoke cannot succeed
+
+Use this only when the Gotify MU side will be cleaned up separately.
+
+---
+
+## 11. Reauthentication
+
+If Gotify MU rejects a stored application token or client token, Home Assistant starts a reauthentication flow.
+
+Reauthentication can:
+
+- replace the application token
+- replace the client token
+- remove the client token
+
+The integration verifies that replacement credentials still correspond to the configured Channel.
+
+If the client token is removed, inbound streaming is automatically disabled.
+
+---
+
+## 12. Reconfiguration
+
+Use **Reconfigure** to change connection/display settings without deleting the integration.
+
+Supported changes:
+
+- Gotify MU server URL
+- Channel display name
+- TLS certificate verification
+- replacement client token
+- removal of the client token
+
+The integration validates the new settings before saving them.
+
+The application token is replaced through reauthentication rather than ordinary reconfiguration.
+
+---
+
+## 13. Integration options
+
+Open:
+
+**Settings → Devices & services → Gotify MU → Configure → Notifications and inbound messages**
+
+Available options:
+
+### Default priority
+
+Controls the priority used by the standard notify entity.
+
+Range:
+
+- 0–10
+
+This does not prevent `gotify_mu.send` from supplying a different priority for an individual message.
+
+### Enable inbound messages
+
+Available when a client token is configured.
+
+Controls whether Home Assistant maintains the realtime WebSocket and exposes inbound Channel messages.
+
+Turning it off leaves outbound notifications working normally.
+
+---
+
+## 14. TLS verification
+
+TLS certificate verification is enabled by default.
+
+Keep it enabled whenever possible.
+
+Disable it only for a trusted private deployment using a certificate Home Assistant cannot validate, such as a deliberate self-signed environment.
+
+The setting applies to the integration's Gotify MU HTTPS traffic and to `image_url` download behavior where applicable.
+
+---
+
+## 15. Diagnostics
+
+Home Assistant config-entry diagnostics include useful non-secret operational information such as:
+
+- Channel ID
+- Channel name
+- inbound enabled state
+- stream connection status
+- reconnect count
+- most recent stream error
+- native pairing state
+- native bridge status
+- queue depth
+- retry count
+- dropped-event count
+- last sent/received timestamps
+- last native bridge error
+
+Diagnostics redact:
+
+- application token
+- client token
+- native shared secret
+- private native webhook ID
+- private native webhook URL
+
+Image bytes are not included in diagnostics.
+
+---
+
+## 16. Security model
+
+The integration is intentionally conservative.
+
+- Application/client tokens live in Home Assistant config-entry storage rather than `configuration.yaml`.
+- Raw application tokens are not used as config-entry unique IDs.
+- One-time native pairing codes are not persisted.
+- Native shared secrets are redacted from diagnostics.
+- Inbound Gotify MU messages are events only.
+- Native webhook payloads can fire Home Assistant events but cannot directly execute arbitrary services.
+- Native webhook authentication uses the exact Bearer secret.
+- Image notifications upload image bytes rather than leaking Home Assistant authentication or private camera URLs to clients.
+- Home Assistant tokens are never inserted into Gotify extras for image delivery.
+- Large images are not embedded as base64 in Gotify message JSON.
+- Image data is not stored in message text or extras by this integration.
+
+---
+
+## 17. Compatibility
+
+### Text notifications
+
+Text publishing uses the standard Gotify-compatible API:
+
+```text
+POST /message
+X-Gotify-Key: <application-token>
+```
+
+This preserves outbound compatibility with Gotify-style servers.
+
+### Gotify MU identity
+
+Current Gotify MU builds provide exact application/Channel identity.
+
+Older compatible servers can use the legacy validation fallback.
+
+### Image notifications
+
+Image notifications require a Gotify MU server version that supports staged application attachments at:
+
+```text
+POST /application/current/attachment
+```
+
+Text-only notifications continue working even when the connected server does not provide the staged attachment extension.
+
+### Native bridge
+
+Native pairing and bidirectional event forwarding are Gotify MU-specific features and require compatible server support.
+
+---
+
+## 18. Common workflows
+
+### Simple Home Assistant status alert
+
+```yaml
+action:
+  - action: notify.send_message
+    target:
+      entity_id: notify.gotify_mu_notifications
+    data:
+      title: "Home Assistant"
+      message: "Restart completed."
+```
+
+### High-priority server alert
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Server Alert"
+      message: "Storage array is degraded."
+      priority: 10
+```
+
+### Markdown system report
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Daily Status"
+      message: |
+        **Backup:** Complete
+        **UPS:** Online
+        **Internet:** Online
+      markdown: true
+```
+
+### Doorbell snapshot
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Front Door"
+      message: "Person detected."
+      priority: 9
+      image_entity: camera.front_door
+```
+
+### Generated image entity
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Camera Snapshot"
+      message: "Latest security snapshot."
+      image_entity: image.security_snapshot
+```
+
+### Remote HTTP image
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Weather Radar"
+      message: "Current radar image."
+      image_url: "https://example.com/radar.png"
+```
+
+### Specific Gotify MU entry
+
+Use the action editor's **Gotify MU entry** selector to target a particular Channel when several entries exist.
+
+The generated YAML contains that config entry's `entry_id`.
+
+---
+
+## 19. Feature availability summary
+
+| Feature | Application token | Client token | Native pairing |
+| --- | :---: | :---: | :---: |
+| Standard notify entity | Required | No | No |
+| `gotify_mu.send` | Required | No | No |
+| Priority/Markdown/extras | Required | No | No |
+| Camera/image notifications | Required | No | No |
+| Realtime inbound Channel messages | Required | Required | No |
+| Messages event entity | Required | Required | No |
+| Inbound connection sensor | Required | Required | No |
+| Native Gotify MU → HA events | Required for normal publishing | No | Required |
+| Native HA → Gotify MU events | Required for normal publishing | No | Required |
+| Native bridge health sensor | Required for normal publishing | No | Required |
+| Native pairing Repairs support | Required for normal publishing | No | Required |
+
+The application token remains part of the normal integration even when native pairing is enabled; native pairing is additive rather than a replacement authentication model.
