@@ -530,20 +530,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
         data.setdefault(CONF_CHANNEL_NAME, application.name)
         by_id.setdefault(application.id, application)
 
+    has_selected_option = CONF_CHANNEL_IDS in entry.options
     selected_raw = entry.options.get(CONF_CHANNEL_IDS, [])
     selected = [int(value) for value in selected_raw]
 
-    if not selected and configured_channel_id is not None:
+    if not selected and not has_selected_option and configured_channel_id is not None:
         selected = [int(configured_channel_id)]
     if client_token:
         selected = [channel_id for channel_id in selected if channel_id in by_id]
-        if not selected and not app_token:
-            selected = [channel.id for channel in channels]
-    if not selected and application is not None:
+    if not selected and not has_selected_option and application is not None:
         selected = [application.id]
 
     if not selected:
-        raise ConfigEntryNotReady("No selected Monita Channels are accessible")
+        raise ConfigEntryNotReady(
+            "None of the selected Monita Channels are currently accessible; "
+            "update Manage Channels"
+        )
 
     primary_channel_id = (
         int(configured_channel_id)
