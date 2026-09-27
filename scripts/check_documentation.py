@@ -13,11 +13,12 @@ SERVICES = ROOT / "custom_components" / "gotify_mu" / "services.yaml"
 TRANSLATIONS = ROOT / "custom_components" / "gotify_mu" / "translations" / "en.json"
 
 REQUIRED_GUIDE_MARKERS = (
-    "Application token validation",
-    "Client token validation",
-    "Multiple Channels",
-    "Standard Home Assistant notify entity",
-    "`gotify_mu.send` action",
+    "New server-centric setup",
+    "Channel permissions",
+    "Legacy per-Channel entries",
+    "Multiple Channels and Manage Channels",
+    "Standard Home Assistant notify entities",
+    "Push Message action (`gotify_mu.send`)",
     "Image notifications",
     "Realtime inbound Channel messages",
     "Messages event entity",
