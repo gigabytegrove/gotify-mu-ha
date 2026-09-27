@@ -208,7 +208,7 @@ The integration also adds its origin marker:
 {
   "homeassistant::gotify_mu": {
     "entry_id": "...",
-    "source": "gotify-mu-ha"
+    "source": "monita-ha"
   }
 }
 ```
