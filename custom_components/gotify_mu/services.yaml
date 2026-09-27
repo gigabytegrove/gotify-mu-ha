@@ -10,13 +10,6 @@ send:
         entity:
           domain: notify
           integration: gotify_mu
-    entry_id:
-      name: Monita server (advanced)
-      description: Compatibility option for existing automations. Usually choose Channel instead.
-      required: false
-      selector:
-        config_entry:
-          integration: gotify_mu
     title:
       name: Title
       required: false
