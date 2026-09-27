@@ -135,6 +135,8 @@ Enter:
 - **Client token** — a Monita client token for the account Home Assistant should use
 - **Verify TLS certificate** — keep enabled unless you deliberately use a trusted private certificate that Home Assistant cannot validate
 
+To create the credential in Monita, open **Clients → Create Client**, give it a recognizable name such as **Home Assistant**, choose the desired inactivity expiration, create it, and copy the token Monita displays. Paste that token into the Home Assistant setup form.
+
 Home Assistant immediately queries Monita for the Channels that account can access. The next screen is **Choose Channels**, where you can select one, several, or all of them.
 
 For every selected Channel that the account is allowed to post to, Home Assistant creates its own notification entity. Selected read-only Channels remain available to inbound message handling but do not get a push-capable notification entity.
