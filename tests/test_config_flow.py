@@ -3,6 +3,7 @@
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 
+from custom_components.gotify_mu.config_flow import GotifyMUOptionsFlow
 from custom_components.gotify_mu.const import (
     CONF_APP_TOKEN,
     CONF_CHANNEL_ID,
@@ -172,3 +173,8 @@ async def test_invalid_application_token(hass, aioclient_mock):
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
     assert result["errors"] == {"base": "invalid_auth"}
+
+
+def test_options_flow_uses_reload_helper():
+    """Options changes must reload the entry so inbound stream changes apply."""
+    assert issubclass(GotifyMUOptionsFlow, config_entries.OptionsFlowWithReload)

@@ -27,6 +27,8 @@ jobs:
                   json.load(file)
               print(f"OK {path}")
           PY
+      - name: Verify locked branding
+        run: python scripts/check_branding.py
       - name: Ruff
         run: |
           python -m pip install --upgrade pip ruff

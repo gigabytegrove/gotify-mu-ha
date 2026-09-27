@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "hash_format": "git-blob-sha1",
+  "assets": {
+    "custom_components/gotify_mu/brand/gotify-mu-ha-banner.png": {
+      "sha": "418400ad96450f1634be49f30cd983bd14d811c6",
+      "width": 1600,
+      "height": 500
+    },
+    "custom_components/gotify_mu/brand/gotify-mu-ha-banner-q.png": {
+      "sha": "22b32d10f65c77f9e3bb751de439fa1117e0c21a",
+      "width": 1600,
+      "height": 500
+    },
+    "custom_components/gotify_mu/brand/gotify-mu-ha-icon.png": {
+      "sha": "380fb83f321dbccc043b4aa7f1f6641d01c275eb",
+      "width": 1024,
+      "height": 1024
+    },
+    "custom_components/gotify_mu/brand/gotify-mu-ha-icon-q.png": {
+      "sha": "f14223e1f738d06d65d01f8d6797227816621cf8",
+      "width": 1024,
+      "height": 1024
+    },
+    "custom_components/gotify_mu/brand/gotify-mu-ha-logo.png": {
+      "sha": "0027a00ba2a9b97311973b5a80d49fdcf16f1c32",
+      "width": 1024,
+      "height": 1024
+    },
+    "custom_components/gotify_mu/brand/gotify-mu-ha-logo-q.png": {
+      "sha": "2cee065c7db51df219289e4e0f08032efc1e97ad",
+      "width": 1024,
+      "height": 1024
+    }
+  },
+  "aliases": {
+    "custom_components/gotify_mu/brand/banner.png": "custom_components/gotify_mu/brand/gotify-mu-ha-banner.png",
+    "custom_components/gotify_mu/brand/icon.png": "custom_components/gotify_mu/brand/gotify-mu-ha-icon.png",
+    "custom_components/gotify_mu/brand/logo.png": "custom_components/gotify_mu/brand/gotify-mu-ha-logo.png"
+  }
+}

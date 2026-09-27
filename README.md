@@ -216,6 +216,7 @@ The repository includes:
 - Ruff linting
 - Hassfest validation
 - Home Assistant config-flow tests
+- Locked branding integrity validation
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 
@@ -247,6 +248,8 @@ Compatibility aliases used by Home Assistant and repository documentation:
 - `custom_components/gotify_mu/brand/icon.png`
 
 The aliases above point to the exact canonical non-`-q` artwork.
+
+Branding integrity is enforced by CI using `.github/branding-lock.json` and `scripts/check_branding.py`. Any unexpected change to one of the six approved assets, its dimensions, or one of the compatibility aliases fails validation. Intentional future branding changes therefore require an explicit update to both the assets and the branding lock.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/gotify-mu-ha-icon.png" alt="Gotify MU for Home Assistant icon" width="220">

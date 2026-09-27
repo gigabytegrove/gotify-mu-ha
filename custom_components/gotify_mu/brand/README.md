@@ -24,3 +24,15 @@ Home Assistant and repository documentation may use:
 Do not regenerate, redraw, recolor, crop differently, optimize in place, or silently replace these assets during ordinary application, documentation, CI, packaging, or release work.
 
 A branding change must be an intentional branding-specific change using explicitly supplied replacement assets.
+
+
+## CI enforcement
+
+The exact approved branding is locked in `.github/branding-lock.json`.
+`scripts/check_branding.py` verifies all six canonical PNG files by Git blob
+hash and dimensions, and verifies that `banner.png`, `logo.png`, and
+`icon.png` remain byte-for-byte aliases of the canonical non-`-q` files.
+
+Normal feature, bug-fix, documentation, packaging, and release work must not
+change the branding lock. Updating it is reserved for an explicitly approved
+branding change.

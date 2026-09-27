@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.3 - 2026-09-26
+
+### Hardened
+
+- Locked all six approved Gotify-MU for Home Assistant branding assets to their exact Git blob hashes and dimensions.
+- Added CI validation that fails if any canonical branding asset changes unexpectedly.
+- Added CI validation that requires `banner.png`, `logo.png`, and `icon.png` to remain byte-for-byte aliases of the approved canonical artwork.
+- Added regression coverage confirming the options flow remains based on Home Assistant's `OptionsFlowWithReload`, so changes such as enabling or disabling inbound messages reload the integration and take effect.
+
+
 ## 1.0.2 - 2026-09-26
 
 ### Fixed
