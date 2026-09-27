@@ -69,7 +69,7 @@
       "invalid_auth": "Monita rejected the supplied credentials.",
       "invalid_url": "Enter a valid http:// or https:// Monita server URL.",
       "rate_limited": "Monita rate limited the validation request. Try again shortly.",
-      "channel_not_accessible": "The configured client token cannot access this Monita Channel.",
+      "channel_not_accessible": "The supplied credential cannot access the currently selected Monita Channel(s).",
       "wrong_channel": "The application token belongs to a different Monita Channel.",
       "no_channels": "This Monita account cannot access any Channels.",
       "select_channel": "Select at least one Monita Channel."
