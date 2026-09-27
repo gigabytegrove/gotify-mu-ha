@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from aiohttp import ClientConnectionError, ClientError, ClientTimeout
-from homeassistant.components import camera as camera_component
-from homeassistant.components import image as image_component
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -83,6 +81,20 @@ def _filename(name: str, content_type: str) -> str:
     return f"{safe_name}-{timestamp}{_SUPPORTED_CONTENT_TYPES[content_type]}"
 
 
+async def _async_get_camera_image(hass: HomeAssistant, entity_id: str):
+    """Retrieve a camera frame through Home Assistant without eager camera imports."""
+    from homeassistant.components.camera import async_get_image
+
+    return await async_get_image(hass, entity_id)
+
+
+async def _async_get_image_entity(hass: HomeAssistant, entity_id: str):
+    """Retrieve an image entity through Home Assistant without eager image imports."""
+    from homeassistant.components.image import async_get_image
+
+    return await async_get_image(hass, entity_id)
+
+
 async def async_acquire_entity_image(
     hass: HomeAssistant,
     entity_id: str,
@@ -94,9 +106,9 @@ async def async_acquire_entity_image(
 
     try:
         if domain == "camera":
-            result = await camera_component.async_get_image(hass, entity_id)
+            result = await _async_get_camera_image(hass, entity_id)
         elif domain == "image":
-            result = await image_component.async_get_image(hass, entity_id)
+            result = await _async_get_image_entity(hass, entity_id)
         else:
             raise HomeAssistantError("Image entity must be a camera or image entity")
     except HomeAssistantError as err:
