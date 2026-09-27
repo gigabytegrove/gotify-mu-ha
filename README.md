@@ -52,9 +52,9 @@ Every user-facing feature above is documented in the [Complete Feature & Usage G
 | Area | Documentation |
 | --- | --- |
 | Setup, token roles, Channel identity, legacy validation | [Connection and credential model](docs/FEATURES.md#1-connection-and-credential-model) |
-| Multiple Monita Channels | [Multiple Channels](docs/FEATURES.md#2-multiple-channels) |
-| Standard Home Assistant notify entity | [Standard notify entity](docs/FEATURES.md#3-standard-home-assistant-notify-entity) |
-| `gotify_mu.send`, priority, Markdown, extras | [Monita action](docs/FEATURES.md#4-gotify_musend-action) |
+| Multiple Monita Channels | [Multiple Channels and Manage Channels](docs/FEATURES.md#2-multiple-channels-and-manage-channels) |
+| Standard Home Assistant notify entity | [Standard notify entities](docs/FEATURES.md#3-standard-home-assistant-notify-entities) |
+| Push Message, priority, Markdown, extras | [Push Message action](docs/FEATURES.md#4-push-message-action-gotify_musend) |
 | Camera, image entity, and image URL notifications | [Image notifications](docs/FEATURES.md#5-image-notifications) |
 | Realtime inbound Channel messages | [Realtime inbound messages](docs/FEATURES.md#6-realtime-inbound-channel-messages) |
 | Native bidirectional Home Assistant bridge | [Native pairing](docs/FEATURES.md#7-native-home-assistant-pairing) |
@@ -95,19 +95,31 @@ The selected Channel list is not permanent. Open **Settings → Devices & servic
 
 Legacy per-Channel application-token entries remain supported so existing installs and automations are not broken.
 
-## Installation
+## Installation and updates
 
-### HACS
+### HACS — recommended
 
-Add this repository to HACS as a **Custom repository** with category **Integration**:
+**If you use HACS, install and update Monita for Home Assistant entirely through HACS. You do not need to run shell commands or manually copy files.**
+
+For the first installation, add this repository to HACS as a **Custom repository** with category **Integration**:
 
 ```text
 https://github.com/gigabytegrove/monita-ha
 ```
 
-Install **Monita for Home Assistant**, then restart Home Assistant.
+Then install **Monita for Home Assistant** and restart Home Assistant when HACS prompts you.
 
-### Manual
+For later releases:
+
+1. Open **HACS → Integrations → Monita for Home Assistant**.
+2. Choose **Update** when a new version is available.
+3. Restart Home Assistant if HACS requests it.
+
+Existing Monita config entries, selected Channels, entities, automations, and credentials are preserved across normal HACS updates. Do **not** remove and recreate the integration just to upgrade it.
+
+### Manual installation — only if you are not using HACS
+
+Manual installation is provided for users who deliberately manage custom components themselves. HACS users should use the HACS workflow above instead.
 
 Copy:
 
@@ -121,7 +133,7 @@ to:
 /config/custom_components/gotify_mu
 ```
 
-Restart Home Assistant.
+Then restart Home Assistant.
 
 ## Setup
 
@@ -153,7 +165,7 @@ The integration queries Monita live and refreshes the Channel list. Select the C
 
 ### Native Monita pairing
 
-Native pairing is optional and additive. The application token remains the credential used by the notify entity and `gotify_mu.send`, while native pairing adds an authenticated event bridge between Monita and Home Assistant.
+Native pairing is optional and additive. New server-centric installs continue using the configured Monita client token for Channel discovery and normal Push Message/notify publishing, while native pairing adds a separate authenticated event bridge between Monita and Home Assistant. Legacy per-Channel application-token entries remain supported.
 
 In Monita, create or open a Home Assistant connection using the **Monita for Home Assistant** native integration and generate its one-time pairing code. The code has the form:
 
