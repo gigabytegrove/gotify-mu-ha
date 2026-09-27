@@ -13,7 +13,7 @@
         },
         "data_description": {
           "server_url": "Base URL of the Monita server.",
-          "client_token": "Monita client token for the account Home Assistant should use. It is used for Channel discovery, inbound messages, and Push Message actions.",
+          "client_token": "Create a client in Monita under Clients → Create Client, then paste its token here. Home Assistant uses it for Channel discovery, inbound messages, and Push Message actions.",
           "verify_ssl": "Disable only for a trusted private server using a self-signed or otherwise untrusted certificate."
         }
       },
