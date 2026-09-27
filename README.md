@@ -1,7 +1,7 @@
 # Gotify MU for Home Assistant
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/logo.png" alt="Gotify MU HA - Home Assistant Integration" width="520">
+  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/gotify-mu-ha-banner.png" alt="Gotify MU for Home Assistant" width="900">
 </p>
 
 
@@ -229,13 +229,25 @@ MIT
 
 ## Branding
 
-The integration ships its Home Assistant brand assets directly with the custom component:
+The branding in this repository is the canonical **Gotify-MU for Home Assistant** artwork supplied for this project. These files must not be regenerated, recolored, redrawn, or silently replaced during normal code, documentation, CI, or release work.
 
-- `custom_components/gotify_mu/brand/logo.png` — transparent Gotify MU HA integration logo
-- `custom_components/gotify_mu/brand/icon.png` — transparent square mascot/icon for Home Assistant
+Canonical source assets:
 
-The HA integration identity deliberately stays close to the Gotify MU mascot while adding the Home Assistant envelope mark, so it is immediately recognizable as the Gotify MU ↔ Home Assistant connector.
+- `custom_components/gotify_mu/brand/gotify-mu-ha-banner.png` — full horizontal banner, 1600×500
+- `custom_components/gotify_mu/brand/gotify-mu-ha-logo.png` — full project logo, 1024×1024
+- `custom_components/gotify_mu/brand/gotify-mu-ha-icon.png` — square integration icon, 1024×1024
+- `custom_components/gotify_mu/brand/gotify-mu-ha-banner-q.png` — alternate/optimized banner supplied with the branding set
+- `custom_components/gotify_mu/brand/gotify-mu-ha-logo-q.png` — alternate/optimized logo supplied with the branding set
+- `custom_components/gotify_mu/brand/gotify-mu-ha-icon-q.png` — alternate/optimized icon supplied with the branding set
+
+Compatibility aliases used by Home Assistant and repository documentation:
+
+- `custom_components/gotify_mu/brand/banner.png`
+- `custom_components/gotify_mu/brand/logo.png`
+- `custom_components/gotify_mu/brand/icon.png`
+
+The aliases above point to the exact canonical non-`-q` artwork.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/icon.png" alt="Gotify MU HA integration icon" width="200">
+  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/gotify-mu-ha-icon.png" alt="Gotify MU for Home Assistant icon" width="220">
 </p>

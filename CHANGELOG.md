@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.2 - 2026-09-26
+
+### Fixed
+
+- Replaced the incorrect/stale Home Assistant branding aliases with the exact user-supplied canonical Gotify-MU for Home Assistant logo and icon.
+- Added the canonical Gotify-MU for Home Assistant banner and updated the GitHub README to use it.
+- Preserved all six supplied branding files in the repository and documented them as immutable project branding.
+- Updated Home Assistant compatibility aliases (`logo.png`, `icon.png`, and `banner.png`) to the canonical non-`-q` artwork.
+
+
 ## 1.0.1 - 2026-09-26
 
 ### Fixed
