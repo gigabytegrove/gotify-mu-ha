@@ -5,17 +5,15 @@
     "step": {
       "user": {
         "title": "Connect to Monita",
-        "description": "Enter the Channel application token used by Home Assistant to send notifications. Optionally add a client token to enable realtime inbound messages. Current Monita servers identify the Channel automatically.",
+        "description": "Connect Home Assistant to one Monita server. The client token is used to discover the Channels your account can access, then you choose which Channels Home Assistant should expose.",
         "data": {
           "server_url": "Server URL",
-          "app_token": "Application token",
-          "client_token": "Client token (optional)",
+          "client_token": "Client token",
           "verify_ssl": "Verify TLS certificate"
         },
         "data_description": {
           "server_url": "Base URL of the Monita server.",
-          "app_token": "Application token for the Channel used by Home Assistant to send messages.",
-          "client_token": "Optional Monita client token. Required only for realtime inbound/two-way messages.",
+          "client_token": "Monita client token for the account Home Assistant should use. It is used for Channel discovery, inbound messages, and Push Message actions.",
           "verify_ssl": "Disable only for a trusted private server using a self-signed or otherwise untrusted certificate."
         }
       },
@@ -29,20 +27,20 @@
       },
       "reauth_confirm": {
         "title": "Reauthenticate Monita",
-        "description": "The stored Monita credentials are no longer accepted. Replace the application token and, if needed, the client token.",
+        "description": "The stored Monita credential is no longer accepted. Replace the credential used by this connection.",
         "data": {
           "app_token": "Application token",
-          "client_token": "Replacement client token (optional)",
+          "client_token": "Replacement client token",
           "remove_client_token": "Remove stored client token"
         },
         "data_description": {
-          "client_token": "Leave blank to keep the existing client token.",
+          "client_token": "For server connections, enter a valid Monita client token. Legacy per-Channel entries may leave this blank to keep their existing client token.",
           "remove_client_token": "Removes inbound/two-way access and disables the inbound stream."
         }
       },
       "reconfigure": {
-        "title": "Reconfigure Monita",
-        "description": "Update network, display, and optional inbound-message settings for this Monita Channel.",
+        "title": "Reconfigure Monita server",
+        "description": "Update the Monita server address, TLS behavior, or connection credential. Use Manage Channels to change which Channels Home Assistant exposes.",
         "data": {
           "server_url": "Server URL",
           "channel_name": "Channel name",
@@ -54,6 +52,16 @@
           "client_token": "Leave blank to keep the existing client token.",
           "remove_client_token": "Removes inbound/two-way access and disables the inbound stream."
         }
+      },
+      "channels": {
+        "title": "Choose Channels",
+        "description": "Select every Monita Channel that should be available to Home Assistant. You can change this list later from Configure → Manage Channels.",
+        "data": {
+          "channel_ids": "Channels"
+        },
+        "data_description": {
+          "channel_ids": "Home Assistant creates notification entities for selected Channels that your Monita account is allowed to post to. Selected read-only Channels remain available to inbound message handling."
+        }
       }
     },
     "error": {
@@ -62,10 +70,12 @@
       "invalid_url": "Enter a valid http:// or https:// Monita server URL.",
       "rate_limited": "Monita rate limited the validation request. Try again shortly.",
       "channel_not_accessible": "The configured client token cannot access this Monita Channel.",
-      "wrong_channel": "The application token belongs to a different Monita Channel."
+      "wrong_channel": "The application token belongs to a different Monita Channel.",
+      "no_channels": "This Monita account cannot access any Channels.",
+      "select_channel": "Select at least one Monita Channel."
     },
     "abort": {
-      "already_configured": "This Monita Channel is already configured.",
+      "already_configured": "This Monita server is already configured.",
       "reauth_successful": "Monita authentication was updated successfully.",
       "reconfigure_successful": "Monita was reconfigured successfully.",
       "setup_state_lost": "Setup state was lost. Start the integration setup again.",
@@ -80,18 +90,19 @@
         "description": "Native pairing status: {native_state}. Choose what you want to manage.",
         "menu_options": {
           "settings": "Notifications and inbound messages",
-          "native_pairing": "Native Home Assistant pairing"
+          "native_pairing": "Native Home Assistant pairing",
+          "channels": "Manage Channels"
         }
       },
       "settings": {
         "title": "Monita options",
-        "description": "Control notification priority and realtime inbound message handling.",
+        "description": "Control default Push Message priority and realtime inbound message handling for the selected Channels.",
         "data": {
           "default_priority": "Default priority",
           "inbound_enabled": "Enable inbound messages"
         },
         "data_description": {
-          "default_priority": "Default Gotify priority used by the notify entity.",
+          "default_priority": "Default Monita priority used by Channel notification entities.",
           "inbound_enabled": "Maintain a Monita WebSocket connection and expose incoming Channel messages as a Home Assistant event entity."
         }
       },
@@ -124,6 +135,16 @@
         },
         "data_description": {
           "force_local_remove": "Recovery option only. This removes Home Assistant's local native credentials even if Monita cannot be reached or rejects the stored bridge secret."
+        }
+      },
+      "channels": {
+        "title": "Manage Channels",
+        "description": "Monita was queried live for the Channels this account can access. Select the Channels Home Assistant should expose. Reopen this screen whenever you add or remove Channels on the server.",
+        "data": {
+          "channel_ids": "Channels"
+        },
+        "data_description": {
+          "channel_ids": "Push-capable Channels receive a Home Assistant notification entity. Read-only Channels can still be included for inbound messages."
         }
       }
     },
@@ -162,8 +183,8 @@
   },
   "services": {
     "send": {
-      "name": "Send notification",
-      "description": "Send a text, Markdown, or hosted image notification through a configured Monita Channel."
+      "name": "Push Message",
+      "description": "Push a text, Markdown, or hosted image message to a selected Monita Channel."
     }
   },
   "issues": {
