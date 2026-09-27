@@ -6,6 +6,7 @@ from custom_components.gotify_mu.helpers import (
     channel_unique_id,
     fallback_unique_id,
     normalize_server_url,
+    server_unique_id,
 )
 
 
@@ -43,4 +44,12 @@ def test_channel_unique_id() -> None:
     assert (
         channel_unique_id("https://push.example.com", 42)
         == "https://push.example.com|channel:42"
+    )
+
+
+def test_server_unique_id() -> None:
+    """Build one stable config-entry identity per Monita server."""
+    assert (
+        server_unique_id("https://push.example.com")
+        == "https://push.example.com|server"
     )
