@@ -153,7 +153,7 @@ The integration queries Monita live and refreshes the Channel list. Select the C
 
 Native pairing is optional and additive. The application token remains the credential used by the notify entity and `gotify_mu.send`, while native pairing adds an authenticated event bridge between Monita and Home Assistant.
 
-In Monita, create or open a Home Assistant connection using **Native gotify-mu-ha integration** and generate its one-time pairing code. The code has the form:
+In Monita, create or open a Home Assistant connection using the **Monita for Home Assistant** native integration and generate its one-time pairing code. The code has the form:
 
 ```text
 12.<random-secret>
