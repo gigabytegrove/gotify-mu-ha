@@ -1,4 +1,4 @@
-"""Regression tests for Gotify MU runtime entities and services."""
+"""Regression tests for Monita runtime entities and services."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from custom_components.gotify_mu import (
     GotifyMURuntimeData,
@@ -17,6 +17,7 @@ from custom_components.gotify_mu import (
 from custom_components.gotify_mu.api import (
     GotifyMUAttachment,
     GotifyMUAuthError,
+    GotifyMUChannel,
     GotifyMUConnectionError,
     GotifyMUError,
 )
@@ -25,6 +26,7 @@ from custom_components.gotify_mu.binary_sensor import (
     GotifyMUNativeBridgeBinarySensor,
 )
 from custom_components.gotify_mu.const import (
+    CONF_CHANNEL_ID,
     CONF_DEFAULT_PRIORITY,
     CONF_SERVER_URL,
     CONF_VERIFY_SSL,
@@ -37,30 +39,65 @@ from custom_components.gotify_mu.event import GotifyMUMessageEventEntity
 from custom_components.gotify_mu.media import GotifyMUImage
 from custom_components.gotify_mu.notify import GotifyMUNotifyEntity
 
-SERVER = "http://gotify-mu.local:8080"
+SERVER = "http://monita.local:8080"
 ENTRY_ID = "entry-runtime-test"
 UNIQUE_ID = f"{SERVER}|channel:7"
 
 
-def _entry(runtime, *, options=None):
+def _channel(
+    channel_id: int = 7,
+    name: str = "Security",
+    *,
+    role: str = "owner",
+    allow_member_post: bool = False,
+) -> GotifyMUChannel:
+    return GotifyMUChannel(
+        id=channel_id,
+        name=name,
+        role=role,
+        allow_member_post=allow_member_post,
+        channel_type="notification",
+    )
+
+
+def _entry(runtime, *, options=None, legacy=True):
+    data = {CONF_SERVER_URL: SERVER}
+    if legacy:
+        data[CONF_CHANNEL_ID] = 7
     return SimpleNamespace(
         runtime_data=runtime,
-        unique_id=UNIQUE_ID,
+        unique_id=UNIQUE_ID if legacy else f"{SERVER}|server",
         entry_id=ENTRY_ID,
-        title="Home Assistant",
-        data={CONF_SERVER_URL: SERVER},
+        title="Monita — monita.local:8080" if not legacy else "Security",
+        data=data,
         options=options or {},
         state=ConfigEntryState.LOADED,
         async_start_reauth=MagicMock(),
     )
 
 
+def _legacy_runtime(client, *, channel_name="Security"):
+    channel = _channel(name=channel_name)
+    return SimpleNamespace(
+        client=client,
+        channel_id=7,
+        channel_name=channel_name,
+        active_channel_ids=(7,),
+        channels={7: channel},
+        channel=lambda channel_id: channel if channel_id == 7 else None,
+    )
+
+
 async def test_notify_entity_sends_with_default_priority_and_origin():
-    """Notify entity publishes through the configured application client."""
-    client = SimpleNamespace(async_send=AsyncMock(return_value={"id": 1}))
-    runtime = SimpleNamespace(client=client, channel_name="Home Assistant")
+    """Legacy notify entity keeps its app-token send behavior and identity."""
+    client = SimpleNamespace(
+        app_token="app-token",
+        client_token=None,
+        async_send=AsyncMock(return_value={"id": 1}),
+    )
+    runtime = _legacy_runtime(client)
     entry = _entry(runtime, options={CONF_DEFAULT_PRIORITY: 8})
-    entity = GotifyMUNotifyEntity(entry)
+    entity = GotifyMUNotifyEntity(entry, _channel())
 
     await entity.async_send_message("Door opened", title="Home")
 
@@ -71,17 +108,63 @@ async def test_notify_entity_sends_with_default_priority_and_origin():
         extras={
             INTEGRATION_ORIGIN_EXTRA: {
                 "entry_id": ENTRY_ID,
+                "channel_id": 7,
                 "source": "monita-ha",
             }
         },
     )
 
 
-async def test_send_service_supports_priority_markdown_and_entry_selection(hass):
-    """gotify_mu.send preserves Gotify-specific send controls."""
-    client = SimpleNamespace(async_send=AsyncMock(return_value={"id": 2}))
-    runtime = SimpleNamespace(client=client)
-    entry = _entry(runtime)
+async def test_server_notify_entity_routes_with_client_token_channel_id():
+    """Server-centric notify entities route through the selected Channel ID."""
+    client = SimpleNamespace(
+        app_token="",
+        client_token="client-token",
+        async_send=AsyncMock(return_value={"id": 1}),
+    )
+    channel = _channel(8, "Greenhouse", role="publisher")
+    runtime = SimpleNamespace(
+        client=client,
+        channel_id=8,
+        channel_name=channel.name,
+        active_channel_ids=(7, 8),
+        channels={8: channel},
+        channel=lambda channel_id: channel if channel_id == 8 else None,
+    )
+    entry = _entry(runtime, legacy=False)
+    entity = GotifyMUNotifyEntity(entry, channel)
+
+    await entity.async_send_message("Temperature high", title="Greenhouse")
+
+    client.async_send.assert_awaited_once_with(
+        "Temperature high",
+        title="Greenhouse",
+        priority=5,
+        extras={
+            INTEGRATION_ORIGIN_EXTRA: {
+                "entry_id": ENTRY_ID,
+                "channel_id": 8,
+                "source": "monita-ha",
+            }
+        },
+        channel_id=8,
+    )
+
+
+async def test_push_message_supports_priority_markdown_and_channel_selection(hass):
+    """Push Message targets one selected Channel with the server credential."""
+    client = SimpleNamespace(
+        app_token="",
+        client_token="client-token",
+        async_send=AsyncMock(return_value={"id": 2}),
+    )
+    runtime = SimpleNamespace(
+        client=client,
+        channel_id=7,
+        channel_name="Security",
+        active_channel_ids=(7, 8),
+    )
+    entry = _entry(runtime, legacy=False)
 
     with patch.object(
         hass.config_entries, "async_entries", return_value=[entry]
@@ -92,6 +175,7 @@ async def test_send_service_supports_priority_markdown_and_entry_selection(hass)
             SERVICE_SEND,
             {
                 "entry_id": ENTRY_ID,
+                "channel_id": 8,
                 "title": "Alert",
                 "message": "**High temperature**",
                 "priority": 9,
@@ -108,16 +192,54 @@ async def test_send_service_supports_priority_markdown_and_entry_selection(hass)
         extras={
             INTEGRATION_ORIGIN_EXTRA: {
                 "entry_id": ENTRY_ID,
+                "channel_id": 8,
                 "source": "monita-ha",
             }
         },
+        channel_id=8,
     )
 
 
-async def test_stream_filters_other_channels_and_self_origin(hass):
-    """Inbound stream dispatches only external messages for the configured channel."""
+async def test_push_message_requires_channel_when_server_exposes_many(hass):
+    """Push Message never guesses when one server exposes multiple Channels."""
+    client = SimpleNamespace(
+        app_token="",
+        client_token="client-token",
+        async_send=AsyncMock(),
+    )
+    runtime = SimpleNamespace(
+        client=client,
+        channel_id=7,
+        channel_name="Security",
+        active_channel_ids=(7, 8),
+    )
+    entry = _entry(runtime, legacy=False)
+
+    with (
+        patch.object(hass.config_entries, "async_entries", return_value=[entry]),
+        pytest.raises(
+            ServiceValidationError,
+            match="Choose a Monita Channel",
+        ),
+    ):
+        assert await async_setup(hass, {})
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEND,
+            {
+                "entry_id": ENTRY_ID,
+                "message": "Destination must be explicit",
+            },
+            blocking=True,
+        )
+
+    client.async_send.assert_not_awaited()
+
+
+async def test_stream_filters_to_selected_channels_and_self_origin(hass):
+    """One server stream accepts selected Channels and filters everything else."""
     messages = [
-        {"id": 1, "appid": 8, "message": "Wrong channel"},
+        {"id": 1, "appid": 9, "message": "Unselected"},
         {
             "id": 2,
             "appid": 7,
@@ -125,11 +247,12 @@ async def test_stream_filters_other_channels_and_self_origin(hass):
             "extras": {
                 INTEGRATION_ORIGIN_EXTRA: {
                     "entry_id": ENTRY_ID,
+                    "channel_id": 7,
                     "source": "monita-ha",
                 }
             },
         },
-        {"id": 3, "appid": 7, "message": "External"},
+        {"id": 3, "appid": 8, "message": "Greenhouse external"},
     ]
 
     class FakeStreamClient:
@@ -142,9 +265,14 @@ async def test_stream_filters_other_channels_and_self_origin(hass):
     runtime = GotifyMURuntimeData(
         client=FakeStreamClient(),
         channel_id=7,
-        channel_name="Home Assistant",
+        channel_name="Security",
         entry_id=ENTRY_ID,
         inbound_enabled=True,
+        channels={
+            7: _channel(7, "Security"),
+            8: _channel(8, "Greenhouse", role="publisher"),
+        },
+        selected_channel_ids=(7, 8),
     )
     received = []
 
@@ -153,17 +281,21 @@ async def test_stream_filters_other_channels_and_self_origin(hass):
         runtime.async_stop()
 
     runtime.async_subscribe(receive)
-    entry = _entry(runtime)
+    entry = _entry(runtime, legacy=False)
 
     await _async_stream_loop(hass, entry)
 
-    assert received == [{"id": 3, "appid": 7, "message": "External"}]
+    assert received == [{"id": 3, "appid": 8, "message": "Greenhouse external"}]
     assert runtime.stream_connected is False
 
 
-def test_event_entity_maps_inbound_message_fields():
-    """Inbound Gotify messages are exposed as structured event entity data."""
-    runtime = SimpleNamespace(channel_name="Home Assistant")
+def test_event_entity_maps_inbound_message_and_channel_fields():
+    """Inbound Monita messages include both Channel ID and Channel name."""
+    channel = _channel(7, "Security")
+    runtime = SimpleNamespace(
+        channel_name="Security",
+        channel=lambda channel_id: channel if channel_id == 7 else None,
+    )
     entity = GotifyMUMessageEventEntity(_entry(runtime))
     message = {
         "id": 42,
@@ -188,6 +320,7 @@ def test_event_entity_maps_inbound_message_fields():
         {
             "message_id": 42,
             "channel_id": 7,
+            "channel_name": "Security",
             "title": "Door",
             "message": "Opened",
             "priority": 6,
@@ -214,7 +347,7 @@ def test_connection_binary_sensors_expose_runtime_health():
         last_error="Rejected credential",
     )
     runtime = SimpleNamespace(
-        channel_name="Home Assistant",
+        channel_name="Security",
         stream_connected=True,
         stream_reconnects=5,
         last_stream_error=None,
@@ -244,7 +377,7 @@ def test_connection_binary_sensors_expose_runtime_health():
 
 
 async def test_send_service_stages_image_and_preserves_message_controls(hass):
-    """Image sends stage bytes first and preserve extras, priority, and Markdown."""
+    """Legacy image sends stage bytes first and preserve message controls."""
     image = GotifyMUImage(
         content=b"\xff\xd8\xff\xe0jpeg",
         filename="front-door-20260927-090612.jpg",
@@ -257,10 +390,12 @@ async def test_send_service_stages_image_and_preserves_message_controls(hass):
         size=len(image.content),
     )
     client = SimpleNamespace(
+        app_token="app-token",
+        client_token=None,
         async_upload_image=AsyncMock(return_value=attachment),
         async_send=AsyncMock(return_value={"id": 3}),
     )
-    runtime = SimpleNamespace(client=client)
+    runtime = _legacy_runtime(client)
     entry = _entry(runtime)
 
     with (
@@ -305,6 +440,7 @@ async def test_send_service_stages_image_and_preserves_message_controls(hass):
             INTEGRATION_ORIGIN_EXTRA: {
                 "existing": "preserved",
                 "entry_id": ENTRY_ID,
+                "channel_id": 7,
                 "source": "monita-ha",
             },
         },
@@ -312,18 +448,69 @@ async def test_send_service_stages_image_and_preserves_message_controls(hass):
     )
 
 
-async def test_image_upload_failure_prevents_message_send(hass):
-    """A requested image can never silently degrade to a text-only message."""
+async def test_server_image_request_fails_instead_of_dropping_image(hass):
+    """Server-centric image requests fail closed until per-Channel staging exists."""
     image = GotifyMUImage(
         content=b"\xff\xd8\xff\xe0jpeg",
         filename="front-door.jpg",
         content_type="image/jpeg",
     )
     client = SimpleNamespace(
+        app_token="",
+        client_token="client-token",
+        async_upload_image=AsyncMock(),
+        async_send=AsyncMock(),
+    )
+    runtime = SimpleNamespace(
+        client=client,
+        channel_id=7,
+        channel_name="Security",
+        active_channel_ids=(7, 8),
+    )
+    entry = _entry(runtime, legacy=False)
+
+    with (
+        patch.object(hass.config_entries, "async_entries", return_value=[entry]),
+        patch(
+            "custom_components.gotify_mu.async_acquire_entity_image",
+            new=AsyncMock(return_value=image),
+        ),
+        pytest.raises(
+            HomeAssistantError,
+            match="does not expose per-Channel staged image uploads",
+        ),
+    ):
+        assert await async_setup(hass, {})
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEND,
+            {
+                "entry_id": ENTRY_ID,
+                "channel_id": 8,
+                "message": "Person detected",
+                "image_entity": "camera.front_door",
+            },
+            blocking=True,
+        )
+
+    client.async_upload_image.assert_not_awaited()
+    client.async_send.assert_not_awaited()
+
+
+async def test_image_upload_failure_prevents_message_send(hass):
+    """A requested legacy image can never silently degrade to text-only."""
+    image = GotifyMUImage(
+        content=b"\xff\xd8\xff\xe0jpeg",
+        filename="front-door.jpg",
+        content_type="image/jpeg",
+    )
+    client = SimpleNamespace(
+        app_token="app-token",
+        client_token=None,
         async_upload_image=AsyncMock(side_effect=GotifyMUError("upload rejected")),
         async_send=AsyncMock(),
     )
-    runtime = SimpleNamespace(client=client)
+    runtime = _legacy_runtime(client)
     entry = _entry(runtime)
 
     with (
@@ -350,17 +537,19 @@ async def test_image_upload_failure_prevents_message_send(hass):
 
 
 async def test_image_upload_auth_failure_starts_reauth(hass):
-    """An app-token rejection during staging starts the normal reauth flow."""
+    """An app-token rejection during legacy image staging starts reauth."""
     image = GotifyMUImage(
         content=b"\xff\xd8\xff\xe0jpeg",
         filename="front-door.jpg",
         content_type="image/jpeg",
     )
     client = SimpleNamespace(
+        app_token="app-token",
+        client_token=None,
         async_upload_image=AsyncMock(side_effect=GotifyMUAuthError("rejected")),
         async_send=AsyncMock(),
     )
-    runtime = SimpleNamespace(client=client)
+    runtime = _legacy_runtime(client)
     entry = _entry(runtime)
 
     with (
@@ -369,7 +558,7 @@ async def test_image_upload_auth_failure_starts_reauth(hass):
             "custom_components.gotify_mu.async_acquire_entity_image",
             new=AsyncMock(return_value=image),
         ),
-        pytest.raises(HomeAssistantError, match="application token"),
+        pytest.raises(HomeAssistantError, match="configured credential"),
     ):
         assert await async_setup(hass, {})
         await hass.services.async_call(
@@ -388,7 +577,7 @@ async def test_image_upload_auth_failure_starts_reauth(hass):
 
 
 async def test_message_failure_after_staging_leaves_server_orphan_for_expiry(hass):
-    """A staged image is not destructively cleaned up when message creation fails."""
+    """A staged legacy image is not destructively cleaned up on send failure."""
     image = GotifyMUImage(
         content=b"\xff\xd8\xff\xe0jpeg",
         filename="front-door.jpg",
@@ -401,11 +590,13 @@ async def test_message_failure_after_staging_leaves_server_orphan_for_expiry(has
         size=len(image.content),
     )
     client = SimpleNamespace(
+        app_token="app-token",
+        client_token=None,
         async_upload_image=AsyncMock(return_value=attachment),
         async_send=AsyncMock(side_effect=GotifyMUConnectionError("offline")),
         async_delete_attachment=AsyncMock(),
     )
-    runtime = SimpleNamespace(client=client)
+    runtime = _legacy_runtime(client)
     entry = _entry(runtime)
 
     with (
@@ -434,7 +625,7 @@ async def test_message_failure_after_staging_leaves_server_orphan_for_expiry(has
 
 
 async def test_image_url_honors_entry_tls_setting(hass):
-    """Advanced URL retrieval uses the configured TLS verification behavior."""
+    """Advanced legacy URL retrieval uses the configured TLS behavior."""
     image = GotifyMUImage(
         content=b"\xff\xd8\xff\xe0jpeg",
         filename="remote-image.jpg",
@@ -447,10 +638,12 @@ async def test_image_url_honors_entry_tls_setting(hass):
         size=len(image.content),
     )
     client = SimpleNamespace(
+        app_token="app-token",
+        client_token=None,
         async_upload_image=AsyncMock(return_value=attachment),
         async_send=AsyncMock(return_value={"id": 4}),
     )
-    runtime = SimpleNamespace(client=client)
+    runtime = _legacy_runtime(client)
     entry = _entry(runtime)
     entry.data[CONF_VERIFY_SSL] = False
 
