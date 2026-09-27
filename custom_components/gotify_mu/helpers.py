@@ -28,3 +28,8 @@ def fallback_unique_id(server_url: str, app_token: str) -> str:
 def channel_unique_id(server_url: str, channel_id: int) -> str:
     """Build a stable ID from the Monita channel ID when available."""
     return f"{server_url}|channel:{channel_id}"
+
+
+def server_unique_id(server_url: str) -> str:
+    """Build a stable ID for one Monita server connection."""
+    return f"{server_url}|server"
