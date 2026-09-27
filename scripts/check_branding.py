@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the immutable Gotify-MU for Home Assistant branding baseline."""
+"""Verify the immutable Monita for Home Assistant branding baseline."""
 
 from __future__ import annotations
 
