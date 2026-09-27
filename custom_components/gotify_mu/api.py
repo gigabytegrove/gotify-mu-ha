@@ -15,6 +15,7 @@ from aiohttp import (
     ClientResponseError,
     ClientSession,
     ClientTimeout,
+    FormData,
     WSMsgType,
 )
 
@@ -39,6 +40,16 @@ class GotifyMURateLimitError(GotifyMUError):
 
 class GotifyMUServerError(GotifyMUError):
     """The server returned an unexpected error."""
+
+
+@dataclass(frozen=True, slots=True)
+class GotifyMUAttachment:
+    """Staged Gotify MU attachment metadata."""
+
+    id: int
+    filename: str
+    content_type: str
+    size: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -273,6 +284,69 @@ class GotifyMUClient:
         except (ClientConnectionError, ClientError, TimeoutError) as err:
             raise GotifyMUConnectionError(str(err)) from err
 
+    async def async_upload_image(
+        self,
+        image: bytes,
+        *,
+        filename: str,
+        content_type: str,
+    ) -> GotifyMUAttachment:
+        """Upload image bytes to the staged attachment endpoint."""
+        form = FormData()
+        form.add_field(
+            "file",
+            image,
+            filename=filename,
+            content_type=content_type,
+        )
+
+        try:
+            async with self.session.post(
+                f"{self.server_url}/application/current/attachment",
+                headers=self._headers(self.app_token),
+                data=form,
+                ssl=self.verify_ssl,
+                timeout=self._timeout,
+            ) as response:
+                await self._raise_for_status(response, auth_context="application token")
+                data = await self._read_json(response)
+                if not isinstance(data, dict):
+                    raise GotifyMUServerError(
+                        "Gotify MU returned invalid attachment metadata"
+                    )
+
+                raw_id = data.get("id", data.get("attachmentId"))
+                try:
+                    attachment_id = int(raw_id)
+                except (TypeError, ValueError) as err:
+                    raise GotifyMUServerError(
+                        "Gotify MU returned attachment metadata without a staged ID"
+                    ) from err
+
+                returned_filename = data.get("filename")
+                returned_content_type = data.get(
+                    "contentType",
+                    data.get("content_type"),
+                )
+                return GotifyMUAttachment(
+                    id=attachment_id,
+                    filename=(
+                        str(returned_filename)
+                        if returned_filename
+                        else filename
+                    ),
+                    content_type=(
+                        str(returned_content_type)
+                        if returned_content_type
+                        else content_type
+                    ),
+                    size=len(image),
+                )
+        except GotifyMUError:
+            raise
+        except (ClientConnectionError, ClientError, TimeoutError) as err:
+            raise GotifyMUConnectionError(str(err)) from err
+
     async def async_send(
         self,
         message: str,
@@ -281,6 +355,7 @@ class GotifyMUClient:
         priority: int = 5,
         markdown: bool = False,
         extras: dict[str, Any] | None = None,
+        attachment_ids: list[int] | None = None,
     ) -> dict[str, Any]:
         """Send a notification through the Gotify-compatible message API."""
         payload: dict[str, Any] = {
@@ -289,6 +364,8 @@ class GotifyMUClient:
         }
         if title:
             payload["title"] = title
+        if attachment_ids:
+            payload["attachmentIds"] = [int(attachment_id) for attachment_id in attachment_ids]
 
         merged_extras: dict[str, Any] = {}
         if extras:

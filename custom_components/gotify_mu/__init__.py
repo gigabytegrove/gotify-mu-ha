@@ -48,6 +48,7 @@ from .const import (
     STREAM_RECONNECT_MAX_SECONDS,
 )
 from .helpers import channel_unique_id, fallback_unique_id
+from .media import async_acquire_entity_image, async_acquire_url_image
 from .native import GotifyMUNativeBridge, native_pairing_is_configured
 from .repairs import async_delete_native_bridge_repair_issue
 
@@ -62,6 +63,9 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("priority"): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
         vol.Optional("markdown", default=False): cv.boolean,
         vol.Optional("entry_id"): cv.string,
+        vol.Exclusive("image_entity", "image_source"): cv.entity_id,
+        vol.Exclusive("image_url", "image_source"): cv.string,
+        vol.Optional("extras"): dict,
     }
 )
 
@@ -253,18 +257,64 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             selected.options.get(CONF_DEFAULT_PRIORITY, DEFAULT_PRIORITY),
         )
 
+        extras = dict(call.data.get("extras") or {})
+        existing_origin = extras.get(INTEGRATION_ORIGIN_EXTRA)
+        origin = dict(existing_origin) if isinstance(existing_origin, dict) else {}
+        origin.update(
+            {
+                "entry_id": selected.entry_id,
+                "source": "gotify-mu-ha",
+            }
+        )
+        extras[INTEGRATION_ORIGIN_EXTRA] = origin
+
         try:
+            image = None
+            if image_entity := call.data.get("image_entity"):
+                image = await async_acquire_entity_image(hass, image_entity)
+            elif image_url := call.data.get("image_url"):
+                image = await async_acquire_url_image(
+                    hass,
+                    image_url,
+                    verify_ssl=selected.data.get(CONF_VERIFY_SSL, True),
+                )
+
+            attachment_ids: list[int] | None = None
+            if image is not None:
+                try:
+                    attachment = await runtime.client.async_upload_image(
+                        image.content,
+                        filename=image.filename,
+                        content_type=image.content_type,
+                    )
+                except GotifyMUAuthError:
+                    raise
+                except GotifyMURateLimitError as err:
+                    raise HomeAssistantError(
+                        "Gotify MU rate limited the image upload"
+                    ) from err
+                except GotifyMUConnectionError as err:
+                    raise HomeAssistantError(
+                        "Could not connect to Gotify MU media endpoint"
+                    ) from err
+                except GotifyMUError as err:
+                    raise HomeAssistantError(
+                        f"Gotify MU rejected the image: {err}"
+                    ) from err
+                attachment_ids = [attachment.id]
+
+            send_kwargs: dict[str, Any] = {
+                "title": call.data.get("title"),
+                "priority": priority,
+                "markdown": call.data.get("markdown", False),
+                "extras": extras,
+            }
+            if attachment_ids is not None:
+                send_kwargs["attachment_ids"] = attachment_ids
+
             await runtime.client.async_send(
                 call.data["message"],
-                title=call.data.get("title"),
-                priority=priority,
-                markdown=call.data.get("markdown", False),
-                extras={
-                    INTEGRATION_ORIGIN_EXTRA: {
-                        "entry_id": selected.entry_id,
-                        "source": "gotify-mu-ha",
-                    }
-                },
+                **send_kwargs,
             )
         except GotifyMUAuthError as err:
             selected.async_start_reauth(hass)

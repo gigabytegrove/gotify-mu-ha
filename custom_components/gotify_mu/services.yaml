@@ -37,3 +37,25 @@ send:
       default: false
       selector:
         boolean:
+    image_entity:
+      name: Image entity
+      description: Capture the current image from a camera or image entity and upload the actual image bytes to Gotify MU so remote and mobile clients can access it.
+      required: false
+      selector:
+        entity:
+          domain:
+            - camera
+            - image
+    image_url:
+      name: Image URL
+      description: Download an HTTP or HTTPS image through Home Assistant, then upload the actual image bytes to Gotify MU so remote and mobile clients do not need access to the source URL.
+      required: false
+      selector:
+        text:
+          type: url
+    extras:
+      name: Gotify extras
+      description: Optional advanced Gotify extras. The Home Assistant origin marker is merged into these values.
+      required: false
+      selector:
+        object:
