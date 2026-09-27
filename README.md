@@ -1,6 +1,7 @@
 # Monita for Home Assistant
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/monita-ha-icon.png" alt="Monita for Home Assistant" width="220"><br>
   <strong>Monita for Home Assistant</strong><br>
   <em>formerly Gotify-MU for Home Assistant</em>
 </p>
@@ -351,6 +352,4 @@ Brand palette:
 - Slate — `#0F172A`
 - Gray — `#9CA3B8`
 
-During the transition, legacy Gotify-MU artwork may remain in the repository only as a compatibility/history asset until the approved Monita PNG asset set is committed. It must not be presented as the active product identity.
-
-The approved Monita artwork must not be regenerated, recolored, redrawn, or silently replaced during normal feature work. Branding changes require an explicit branding update and corresponding CI lock update.
+The active repository branding is Monita-only. The approved Monita artwork must not be regenerated, recolored, redrawn, or silently replaced during normal feature work. Branding changes require an explicit branding update and corresponding CI lock update.
