@@ -48,10 +48,25 @@ async def async_setup_entry(
                 role="owner",
             )
 
-        if runtime.client.client_token and not channel.can_post:
+        legacy_app_channel = bool(
+            runtime.client.app_token
+            and runtime.channel_id is not None
+            and channel.id == runtime.channel_id
+        )
+        if (
+            runtime.client.client_token
+            and not channel.can_post
+            and not legacy_app_channel
+        ):
             continue
 
-        entities.append(GotifyMUNotifyEntity(entry, channel))
+        entities.append(
+            GotifyMUNotifyEntity(
+                entry,
+                channel,
+                use_legacy_app_token=legacy_app_channel,
+            )
+        )
 
     if entities:
         async_add_entities(entities)
@@ -68,10 +83,13 @@ class GotifyMUNotifyEntity(NotifyEntity):
         self,
         entry: GotifyMUConfigEntry,
         channel: GotifyMUChannel,
+        *,
+        use_legacy_app_token: bool = False,
     ) -> None:
         """Initialize the notify entity."""
         self._entry = entry
         self._channel = channel
+        self._use_legacy_app_token = use_legacy_app_token
         self._attr_name = channel.name
 
         legacy_channel_id = entry.data.get(CONF_CHANNEL_ID)
@@ -132,7 +150,10 @@ class GotifyMUNotifyEntity(NotifyEntity):
                     }
                 },
             }
-            if self._entry.runtime_data.client.client_token:
+            if (
+                self._entry.runtime_data.client.client_token
+                and not self._use_legacy_app_token
+            ):
                 kwargs["channel_id"] = self._channel.id
 
             await self._entry.runtime_data.client.async_send(
