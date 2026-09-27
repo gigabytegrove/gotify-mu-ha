@@ -290,10 +290,10 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     else:
                         options[CONF_CHANNEL_IDS] = selected
                         return self.async_update_reload_and_abort(
-                        entry,
-                        data=data,
-                        options=options,
-                    )
+                            entry,
+                            data=data,
+                            options=options,
+                        )
 
             return self.async_show_form(
                 step_id="reauth_confirm",
