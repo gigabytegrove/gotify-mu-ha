@@ -74,7 +74,7 @@ class GotifyMUNotifyEntity(NotifyEntity):
                 extras={
                     INTEGRATION_ORIGIN_EXTRA: {
                         "entry_id": self._entry.entry_id,
-                        "source": "gotify-mu-ha",
+                        "source": "monita-ha",
                     }
                 },
             )
