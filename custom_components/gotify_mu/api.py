@@ -11,11 +11,11 @@ from urllib.parse import urlsplit, urlunsplit
 from aiohttp import (
     ClientConnectionError,
     ClientError,
-    FormData,
     ClientResponse,
     ClientResponseError,
     ClientSession,
     ClientTimeout,
+    FormData,
     WSMsgType,
 )
 
