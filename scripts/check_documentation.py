@@ -17,7 +17,7 @@ REQUIRED_GUIDE_MARKERS = (
     "Client token validation",
     "Multiple Channels",
     "Standard Home Assistant notify entity",
-    "\`gotify_mu.send\` action",
+    "`gotify_mu.send` action",
     "Image notifications",
     "Realtime inbound Channel messages",
     "Messages event entity",
@@ -82,7 +82,7 @@ def main() -> None:
             errors.append(f"Feature guide is missing required topic: {marker}")
 
     for field in sorted(_service_fields(services)):
-        if f"\`{field}\`" not in guide:
+        if f"`{field}`" not in guide:
             errors.append(
                 f"Feature guide does not document gotify_mu.send field: {field}"
             )
