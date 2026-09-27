@@ -124,3 +124,53 @@ async def test_send_includes_attachment_ids_and_preserves_markdown_extras():
             "client::display": {"contentType": "text/markdown"},
         },
     }
+
+
+async def test_client_token_send_routes_to_selected_channel():
+    """Server-centric sends use the client token and appid Channel routing."""
+    session = _FakeSession([{"id": 3}])
+    client = GotifyMUClient(
+        session,
+        SERVER,
+        "",
+        True,
+        "client-secret",
+    )
+
+    await client.async_send(
+        "Greenhouse alert",
+        title="Greenhouse",
+        priority=7,
+        channel_id=8,
+    )
+
+    _, url, kwargs = session.calls[0]
+    assert url == f"{SERVER}/message"
+    assert kwargs["headers"] == {"X-Gotify-Key": "client-secret"}
+    assert kwargs["json"] == {
+        "message": "Greenhouse alert",
+        "priority": 7,
+        "title": "Greenhouse",
+        "appid": 8,
+    }
+
+
+def test_channel_post_permissions_follow_monita_roles():
+    """Channel metadata distinguishes push-capable and read-only roles."""
+    assert GotifyMUClient._parse_channel(
+        {"id": 1, "name": "Owner", "role": "owner"}
+    ).can_post
+    assert GotifyMUClient._parse_channel(
+        {"id": 2, "name": "Publisher", "role": "publisher"}
+    ).can_post
+    assert GotifyMUClient._parse_channel(
+        {
+            "id": 3,
+            "name": "Member",
+            "role": "member",
+            "allowMemberPost": True,
+        }
+    ).can_post
+    assert not GotifyMUClient._parse_channel(
+        {"id": 4, "name": "Read only", "role": "readonly"}
+    ).can_post
