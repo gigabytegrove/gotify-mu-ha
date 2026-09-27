@@ -332,7 +332,7 @@ async def test_image_upload_failure_prevents_message_send(hass):
             "custom_components.gotify_mu.async_acquire_entity_image",
             new=AsyncMock(return_value=image),
         ),
-        pytest.raises(HomeAssistantError, match="Gotify MU rejected the image"),
+        pytest.raises(HomeAssistantError, match="Monita rejected the image"),
     ):
         assert await async_setup(hass, {})
         await hass.services.async_call(
@@ -414,7 +414,7 @@ async def test_message_failure_after_staging_leaves_server_orphan_for_expiry(has
             "custom_components.gotify_mu.async_acquire_entity_image",
             new=AsyncMock(return_value=image),
         ),
-        pytest.raises(HomeAssistantError, match="Could not connect to Gotify MU"),
+        pytest.raises(HomeAssistantError, match="Could not connect to Monita"),
     ):
         assert await async_setup(hass, {})
         await hass.services.async_call(
