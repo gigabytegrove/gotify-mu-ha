@@ -1,4 +1,4 @@
-"""Home Assistant repair issue helpers for Gotify MU."""
+"""Home Assistant repair issue helpers for Monita."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def async_create_native_bridge_repair_issue(
         translation_placeholders={"name": name},
         learn_more_url=(
             "https://github.com/gigabytegrove/gotify-mu-ha"
-            "#native-gotify-mu-pairing"
+            "#native-monita-pairing"
         ),
     )
 

@@ -1,4 +1,4 @@
-"""Constants for the Gotify MU integration."""
+"""Constants for the Monita integration."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ CONF_NATIVE_PAIRING_CODE = "native_pairing_code"
 CONF_HOME_ASSISTANT_URL = "home_assistant_url"
 CONF_FORCE_LOCAL_REMOVE = "force_local_remove"
 
-DEFAULT_NAME = "Gotify MU"
+DEFAULT_NAME = "Monita"
 DEFAULT_PRIORITY = 5
 DEFAULT_VERIFY_SSL = True
 DEFAULT_INBOUND_ENABLED = True

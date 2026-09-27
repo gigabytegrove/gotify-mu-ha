@@ -1,4 +1,4 @@
-"""Inbound message event platform for Gotify MU."""
+"""Inbound message event platform for Monita."""
 
 from __future__ import annotations
 
@@ -18,14 +18,14 @@ async def async_setup_entry(
     entry: GotifyMUConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Gotify MU inbound-message event entity."""
+    """Set up the Monita inbound-message event entity."""
     if not entry.runtime_data.inbound_enabled:
         return
     async_add_entities([GotifyMUMessageEventEntity(entry)])
 
 
 class GotifyMUMessageEventEntity(EventEntity):
-    """Expose inbound Gotify MU messages as Home Assistant events."""
+    """Expose inbound Monita messages as Home Assistant events."""
 
     _attr_has_entity_name = True
     _attr_event_types = [EVENT_TYPE_MESSAGE]
@@ -39,7 +39,7 @@ class GotifyMUMessageEventEntity(EventEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
             name=entry.runtime_data.channel_name,
-            manufacturer="Gotify MU",
+            manufacturer="Monita",
             model="Notification Channel",
             configuration_url=entry.data[CONF_SERVER_URL],
         )
@@ -54,7 +54,7 @@ class GotifyMUMessageEventEntity(EventEntity):
 
     @callback
     def _async_handle_message(self, message: dict[str, Any]) -> None:
-        """Record an inbound Gotify MU message."""
+        """Record an inbound Monita message."""
         event_data = {
             "message_id": message.get("id"),
             "channel_id": message.get("appid"),

@@ -1,4 +1,4 @@
-"""Diagnostics support for Gotify MU."""
+"""Diagnostics support for Monita."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
     entry: GotifyMUConfigEntry,
 ) -> dict[str, Any]:
-    """Return diagnostics for a Gotify MU config entry."""
+    """Return diagnostics for a Monita config entry."""
     runtime = entry.runtime_data
     return {
         "entry": {

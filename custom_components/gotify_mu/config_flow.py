@@ -1,4 +1,4 @@
-"""Config flow for Gotify MU."""
+"""Config flow for Monita."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ from .repairs import async_delete_native_bridge_repair_issue
 
 
 class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Gotify MU."""
+    """Handle a config flow for Monita."""
 
     VERSION = 2
     MINOR_VERSION = 0
@@ -477,7 +477,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
-    """Handle Gotify MU options and native pairing."""
+    """Handle Monita options and native pairing."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -535,7 +535,7 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
     async def async_step_native_pairing(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the native Gotify MU pairing state."""
+        """Manage the native Monita pairing state."""
         del user_input
         if not native_pairing_is_configured(dict(self.config_entry.data)):
             return await self.async_step_native_pair()
@@ -553,7 +553,7 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
     async def async_step_native_pair(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Pair this config entry with a Gotify MU native HA connection."""
+        """Pair this config entry with a Monita native HA connection."""
         errors: dict[str, str] = {}
         webhook_id = webhook.async_generate_id()
         auto_webhook_url: str | None

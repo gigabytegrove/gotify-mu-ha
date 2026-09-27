@@ -1,4 +1,4 @@
-"""Notify platform for Gotify MU."""
+"""Notify platform for Monita."""
 
 from __future__ import annotations
 
@@ -31,12 +31,12 @@ async def async_setup_entry(
     entry: GotifyMUConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Gotify MU notify entity."""
+    """Set up the Monita notify entity."""
     async_add_entities([GotifyMUNotifyEntity(entry)])
 
 
 class GotifyMUNotifyEntity(NotifyEntity):
-    """Gotify MU notification entity."""
+    """Monita notification entity."""
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:message-badge"
@@ -50,7 +50,7 @@ class GotifyMUNotifyEntity(NotifyEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
             name=entry.runtime_data.channel_name,
-            manufacturer="Gotify MU",
+            manufacturer="Monita",
             model="Notification Channel",
             configuration_url=entry.data[CONF_SERVER_URL],
         )
@@ -74,16 +74,16 @@ class GotifyMUNotifyEntity(NotifyEntity):
                 extras={
                     INTEGRATION_ORIGIN_EXTRA: {
                         "entry_id": self._entry.entry_id,
-                        "source": "gotify-mu-ha",
+                        "source": "monita-ha",
                     }
                 },
             )
         except GotifyMUAuthError as err:
             self._entry.async_start_reauth(self.hass)
-            raise HomeAssistantError("Gotify MU rejected the application token") from err
+            raise HomeAssistantError("Monita rejected the application token") from err
         except GotifyMURateLimitError as err:
-            raise HomeAssistantError("Gotify MU rate limited the notification") from err
+            raise HomeAssistantError("Monita rate limited the notification") from err
         except GotifyMUConnectionError as err:
-            raise HomeAssistantError(f"Could not connect to Gotify MU: {err}") from err
+            raise HomeAssistantError(f"Could not connect to Monita: {err}") from err
         except GotifyMUError as err:
             raise HomeAssistantError(str(err)) from err

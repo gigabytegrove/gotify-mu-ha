@@ -71,7 +71,7 @@ async def test_notify_entity_sends_with_default_priority_and_origin():
         extras={
             INTEGRATION_ORIGIN_EXTRA: {
                 "entry_id": ENTRY_ID,
-                "source": "gotify-mu-ha",
+                "source": "monita-ha",
             }
         },
     )
@@ -108,7 +108,7 @@ async def test_send_service_supports_priority_markdown_and_entry_selection(hass)
         extras={
             INTEGRATION_ORIGIN_EXTRA: {
                 "entry_id": ENTRY_ID,
-                "source": "gotify-mu-ha",
+                "source": "monita-ha",
             }
         },
     )
@@ -125,7 +125,7 @@ async def test_stream_filters_other_channels_and_self_origin(hass):
             "extras": {
                 INTEGRATION_ORIGIN_EXTRA: {
                     "entry_id": ENTRY_ID,
-                    "source": "gotify-mu-ha",
+                    "source": "monita-ha",
                 }
             },
         },
@@ -305,7 +305,7 @@ async def test_send_service_stages_image_and_preserves_message_controls(hass):
             INTEGRATION_ORIGIN_EXTRA: {
                 "existing": "preserved",
                 "entry_id": ENTRY_ID,
-                "source": "gotify-mu-ha",
+                "source": "monita-ha",
             },
         },
         attachment_ids=[123],
@@ -332,7 +332,7 @@ async def test_image_upload_failure_prevents_message_send(hass):
             "custom_components.gotify_mu.async_acquire_entity_image",
             new=AsyncMock(return_value=image),
         ),
-        pytest.raises(HomeAssistantError, match="Gotify MU rejected the image"),
+        pytest.raises(HomeAssistantError, match="Monita rejected the image"),
     ):
         assert await async_setup(hass, {})
         await hass.services.async_call(
@@ -414,7 +414,7 @@ async def test_message_failure_after_staging_leaves_server_orphan_for_expiry(has
             "custom_components.gotify_mu.async_acquire_entity_image",
             new=AsyncMock(return_value=image),
         ),
-        pytest.raises(HomeAssistantError, match="Could not connect to Gotify MU"),
+        pytest.raises(HomeAssistantError, match="Could not connect to Monita"),
     ):
         assert await async_setup(hass, {})
         await hass.services.async_call(
