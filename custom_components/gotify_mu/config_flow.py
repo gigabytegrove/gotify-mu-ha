@@ -230,7 +230,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(
                     CONF_CHANNEL_IDS,
-                    default=[str(channel.id) for channel in self._channels],
+                    default=[],
                 ): SelectSelector(
                     SelectSelectorConfig(
                         options=_channel_selector_options(self._channels),
@@ -286,9 +286,10 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         if int(value) in available
                     ]
                     if not selected:
-                        selected = [channel.id for channel in channels]
-                    options[CONF_CHANNEL_IDS] = selected
-                    return self.async_update_reload_and_abort(
+                        errors["base"] = "channel_not_accessible"
+                    else:
+                        options[CONF_CHANNEL_IDS] = selected
+                        return self.async_update_reload_and_abort(
                         entry,
                         data=data,
                         options=options,
@@ -433,14 +434,15 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         if int(value) in available
                     ]
                     if not selected:
-                        selected = [channel.id for channel in channels]
-                    options[CONF_CHANNEL_IDS] = selected
-                    return self.async_update_reload_and_abort(
-                        entry,
-                        title=_server_title(server_url),
-                        data=data,
-                        options=options,
-                    )
+                        errors["base"] = "channel_not_accessible"
+                    else:
+                        options[CONF_CHANNEL_IDS] = selected
+                        return self.async_update_reload_and_abort(
+                            entry,
+                            title=_server_title(server_url),
+                            data=data,
+                            options=options,
+                        )
 
             return self.async_show_form(
                 step_id="reconfigure",
