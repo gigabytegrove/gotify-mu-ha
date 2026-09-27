@@ -31,11 +31,16 @@
       "sha": "2cee065c7db51df219289e4e0f08032efc1e97ad",
       "width": 1024,
       "height": 1024
+    },
+    "custom_components/gotify_mu/brand/monita-ha-icon.png": {
+      "sha": "00d4b9878a7dd10e76485660c8dd86dd43004824",
+      "width": 1024,
+      "height": 1024
     }
   },
   "aliases": {
     "custom_components/gotify_mu/brand/banner.png": "custom_components/gotify_mu/brand/gotify-mu-ha-banner.png",
-    "custom_components/gotify_mu/brand/icon.png": "custom_components/gotify_mu/brand/gotify-mu-ha-icon.png",
+    "custom_components/gotify_mu/brand/icon.png": "custom_components/gotify_mu/brand/monita-ha-icon.png",
     "custom_components/gotify_mu/brand/logo.png": "custom_components/gotify_mu/brand/gotify-mu-ha-logo.png"
   }
 }
