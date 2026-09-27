@@ -255,7 +255,11 @@ def _resolve_push_target(
     if target_channel_id is None and requested_channel_id is not None:
         target_channel_id = int(requested_channel_id)
 
-    active = selected.runtime_data.active_channel_ids
+    runtime = selected.runtime_data
+    active = getattr(runtime, "active_channel_ids", None)
+    if active is None:
+        legacy_channel_id = getattr(runtime, "channel_id", None)
+        active = (legacy_channel_id,) if legacy_channel_id is not None else ()
     if target_channel_id is None:
         if len(active) != 1:
             raise ServiceValidationError(
