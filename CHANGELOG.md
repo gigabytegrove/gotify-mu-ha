@@ -16,6 +16,12 @@
 - Standard Home Assistant `notify.send_message` remains the stable text/title path; image notifications use `gotify_mu.send`.
 - Caller-supplied Gotify extras are merged with the integration origin marker instead of being replaced.
 
+### Documentation
+
+- Added a canonical complete feature and usage guide covering every user-facing integration capability, credential role, option, entity, health signal, repair path, security behavior, and compatibility requirement.
+- Expanded image-notification documentation with practical doorbell/camera guidance, source selection, supported formats, the 10 MiB limit, remote/mobile behavior, and failure semantics.
+- Added a README documentation map so every feature is directly discoverable.
+
 
 ## 1.1.0 - 2026-09-26
 

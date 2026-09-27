@@ -163,7 +163,7 @@
   "services": {
     "send": {
       "name": "Send notification",
-      "description": "Send a notification through a configured Gotify MU Channel."
+      "description": "Send a text, Markdown, or hosted image notification through a configured Gotify MU Channel."
     }
   },
   "issues": {
