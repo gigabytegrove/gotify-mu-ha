@@ -1,13 +1,14 @@
-# Gotify MU for Home Assistant
+# Monita for Home Assistant
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/gotify-mu-ha-banner.png" alt="Gotify MU for Home Assistant" width="900">
+  <strong>Monita for Home Assistant</strong><br>
+  <em>formerly Gotify-MU for Home Assistant</em>
 </p>
 
 
-A Home Assistant custom integration for [Gotify MU](https://github.com/gigabytegrove/gotify-mu).
+A Home Assistant custom integration for **Monita**, the successor to Gotify-MU. It connects Home Assistant directly to the self-hosted Monita notification, messaging, and automation platform.
 
-It provides native Home Assistant notification entities for Gotify MU Channels and optional realtime inbound Channel messages for two-way automations.
+It provides native Home Assistant notification entities for Monita Channels, image notifications, optional realtime inbound Channel messages, and an authenticated native event bridge for two-way automations.
 
 ## Documentation
 
@@ -22,21 +23,21 @@ The README covers installation and the most common workflows. The complete guide
 - No `configuration.yaml` changes required
 - Standard Home Assistant `notify` entity
 - Native `gotify_mu.send` action with priority and Markdown support
-- Camera/image notifications that upload real image bytes to Gotify MU for mobile and remote access
+- Camera/image notifications that upload real image bytes to Monita for mobile and remote access
 - Exact application-token validation without creating a test notification
-- Stable Channel identity on current Gotify MU servers
+- Stable Channel identity on current Monita servers
 - Optional client token for realtime inbound messages
 - Home Assistant `event` entity containing inbound Channel messages
 - Connection-status binary sensor for the inbound WebSocket
 - Automatic reconnect with bounded backoff
 - Reauthentication and reconfiguration flows
-- Optional native Home Assistant pairing with Gotify MU, with no Home Assistant Long-Lived Access Token required
-- Authenticated Gotify MU → Home Assistant webhook events and Home Assistant → Gotify MU event forwarding
-- Native pairing can be repaired or removed without deleting the normal Gotify MU integration
+- Optional native Home Assistant pairing with Monita, with no Home Assistant Long-Lived Access Token required
+- Authenticated Monita → Home Assistant webhook events and Home Assistant → Monita event forwarding
+- Native pairing can be repaired or removed without deleting the normal Monita integration
 - Native bridge health sensor with Paired / Connected / Degraded / Repair required visibility
-- Bounded retry/backoff for transient Home Assistant → Gotify MU event-delivery failures
+- Bounded retry/backoff for transient Home Assistant → Monita event-delivery failures
 - Authenticated remote revoke when native pairing is removed
-- Multiple Gotify MU Channels by adding multiple integration entries
+- Multiple Monita Channels by adding multiple integration entries
 - Config-entry diagnostics with credentials redacted
 - TLS verification control for private/self-signed deployments
 - HACS-compatible repository layout
@@ -49,9 +50,9 @@ Every user-facing feature above is documented in the [Complete Feature & Usage G
 | Area | Documentation |
 | --- | --- |
 | Setup, token roles, Channel identity, legacy validation | [Connection and credential model](docs/FEATURES.md#1-connection-and-credential-model) |
-| Multiple Gotify MU Channels | [Multiple Channels](docs/FEATURES.md#2-multiple-channels) |
+| Multiple Monita Channels | [Multiple Channels](docs/FEATURES.md#2-multiple-channels) |
 | Standard Home Assistant notify entity | [Standard notify entity](docs/FEATURES.md#3-standard-home-assistant-notify-entity) |
-| `gotify_mu.send`, priority, Markdown, extras | [Gotify MU action](docs/FEATURES.md#4-gotify_musend-action) |
+| `gotify_mu.send`, priority, Markdown, extras | [Monita action](docs/FEATURES.md#4-gotify_musend-action) |
 | Camera, image entity, and image URL notifications | [Image notifications](docs/FEATURES.md#5-image-notifications) |
 | Realtime inbound Channel messages | [Realtime inbound messages](docs/FEATURES.md#6-realtime-inbound-channel-messages) |
 | Native bidirectional Home Assistant bridge | [Native pairing](docs/FEATURES.md#7-native-home-assistant-pairing) |
@@ -63,16 +64,31 @@ Every user-facing feature above is documented in the [Complete Feature & Usage G
 | API/server compatibility and feature requirements | [Compatibility](docs/FEATURES.md#17-compatibility) |
 | Copyable everyday examples | [Common workflows](docs/FEATURES.md#18-common-workflows) |
 
+## Rebrand and upgrade compatibility
+
+**Monita for Home Assistant was formerly Gotify-MU for Home Assistant.** The rebrand is intentionally non-destructive.
+
+Existing installations keep the technical Home Assistant integration domain and service namespace:
+
+- integration domain: `gotify_mu`
+- custom component directory: `custom_components/gotify_mu`
+- service action: `gotify_mu.send`
+- existing config entries, entity unique IDs, automations, scripts, and stored credentials remain valid
+
+You do **not** need to delete and recreate the integration just because the display name changed to Monita. The legacy technical identifiers remain in place for upgrade compatibility and may be migrated only through a separately documented compatibility-safe migration in a future release.
+
+The underlying HTTP/WebSocket API remains Gotify-compatible where documented. References to Gotify in protocol field names or compatibility notes are technical compatibility references, not the active product name.
+
 ## Requirements
 
 Outbound notifications require:
 
-- a Gotify MU server URL
+- a Monita server URL
 - an application token for the Channel
 
-Realtime inbound messages additionally require a Gotify MU **client token** belonging to a user who can access the Channel.
+Realtime inbound messages additionally require a Monita **client token** belonging to a user who can access the Channel.
 
-Current Gotify MU builds expose `GET /application/current`, allowing this integration to identify the application token's exact Channel automatically. Older Gotify-compatible servers still work for outbound notifications using a safe validation fallback.
+Current Monita builds expose `GET /application/current`, allowing this integration to identify the application token's exact Channel automatically. Older Gotify-compatible servers still work for outbound notifications using a safe validation fallback.
 
 ## Installation
 
@@ -84,7 +100,7 @@ Add this repository to HACS as a **Custom repository** with category **Integrati
 https://github.com/gigabytegrove/gotify-mu-ha
 ```
 
-Install **Gotify MU**, then restart Home Assistant.
+Install **Monita for Home Assistant**, then restart Home Assistant.
 
 ### Manual
 
@@ -106,43 +122,43 @@ Restart Home Assistant.
 
 Open:
 
-**Settings → Devices & services → Add integration → Gotify MU**
+**Settings → Devices & services → Add integration → Monita for Home Assistant**
 
 Enter:
 
 - **Server URL** — for example `https://push.example.com`
-- **Application token** — the application token for the Gotify MU Channel
+- **Application token** — the application token for the Monita Channel
 - **Client token** — optional; required only for inbound/two-way messages
 - **Verify TLS certificate** — keep enabled unless you deliberately use a trusted private certificate that Home Assistant cannot validate
 
-On current Gotify MU builds, the Channel is detected automatically from the application token. On older servers, the integration asks you to choose or name the Channel after credential validation.
+On current Monita builds, the Channel is detected automatically from the application token. On older servers, the integration asks you to choose or name the Channel after credential validation.
 
-### Native Gotify MU pairing
+### Native Monita pairing
 
-Native pairing is optional and additive. The application token remains the credential used by the notify entity and `gotify_mu.send`, while native pairing adds an authenticated event bridge between Gotify MU and Home Assistant.
+Native pairing is optional and additive. The application token remains the credential used by the notify entity and `gotify_mu.send`, while native pairing adds an authenticated event bridge between Monita and Home Assistant.
 
-In Gotify MU, create or open a Home Assistant connection using **Native gotify-mu-ha integration** and generate its one-time pairing code. The code has the form:
+In Monita, create or open a Home Assistant connection using **Native gotify-mu-ha integration** and generate its one-time pairing code. The code has the form:
 
 ```text
 12.<random-secret>
 ```
 
-Then in Home Assistant open the configured **Gotify MU** integration, choose **Configure → Native Home Assistant pairing → Pair with Gotify MU server**, and enter the pairing code.
+Then in Home Assistant open the configured **Monita** integration, choose **Configure → Native Home Assistant pairing → Pair with Monita server**, and enter the pairing code.
 
-Home Assistant generates a random private webhook ID automatically. It shows the callback URL it detected and always allows an optional base-URL override, which is useful when Home Assistant chooses an internal address that the Gotify MU server cannot actually reach. If no usable URL can be determined automatically, the override becomes required.
+Home Assistant generates a random private webhook ID automatically. It shows the callback URL it detected and always allows an optional base-URL override, which is useful when Home Assistant chooses an internal address that the Monita server cannot actually reach. If no usable URL can be determined automatically, the override becomes required.
 
 A successful pairing stores only the native integration ID, shared secret, event path, and webhook details in Home Assistant config-entry storage. The one-time pairing code is never stored.
 
 The native bridge supports both directions:
 
-- **Gotify MU → Home Assistant:** Gotify MU posts authenticated payloads to the private HA webhook. The integration validates the Bearer secret and fires the supplied `eventType` on the Home Assistant event bus with the supplied `data`.
-- **Home Assistant → Gotify MU:** Home Assistant events are posted to the paired Gotify MU event endpoint using the shared Bearer secret. Gotify MU applies its configured event type, entity ID, field, and value filters before routing matching events into the selected Channel.
+- **Monita → Home Assistant:** Monita posts authenticated payloads to the private HA webhook. The integration validates the Bearer secret and fires the supplied `eventType` on the Home Assistant event bus with the supplied `data`.
+- **Home Assistant → Monita:** Home Assistant events are posted to the paired Monita event endpoint using the shared Bearer secret. Monita applies its configured event type, entity ID, field, and value filters before routing matching events into the selected Channel.
 
 Inbound native bridge payloads are events only. They are never converted into arbitrary Home Assistant service calls.
 
 ## Sending notifications
 
-Home Assistant creates a notification entity for each configured Gotify MU Channel.
+Home Assistant creates a notification entity for each configured Monita Channel.
 
 ```yaml
 action:
@@ -156,9 +172,9 @@ action:
 
 Home Assistant chooses the final entity ID, so use the entity picker rather than assuming the example ID.
 
-The standard Home Assistant notify entity intentionally remains a text/title path. Use `gotify_mu.send` for image notifications so the integration can capture, validate, stage, and attach the image using Gotify MU's media contract.
+The standard Home Assistant notify entity intentionally remains a text/title path. Use `gotify_mu.send` for image notifications so the integration can capture, validate, stage, and attach the image using Monita's media contract.
 
-### Gotify MU action
+### Monita action
 
 For Gotify-specific priority and Markdown controls, use:
 
@@ -172,11 +188,11 @@ action:
       markdown: true
 ```
 
-If multiple Gotify MU entries are configured, the action UI can target a specific config entry. If no entry is specified, the first loaded Gotify MU entry is used.
+If multiple Monita entries are configured, the action UI can target a specific config entry. If no entry is specified, the first loaded Monita entry is used.
 
 ### Doorbell and camera image notifications
 
-For a camera entity, use `image_entity`. Home Assistant captures a fresh frame at the moment the action runs, uploads the actual image bytes to Gotify MU using the configured application token, and then sends the message with the returned staged attachment ID.
+For a camera entity, use `image_entity`. Home Assistant captures a fresh frame at the moment the action runs, uploads the actual image bytes to Monita using the configured application token, and then sends the message with the returned staged attachment ID.
 
 **When to use it:** choose `image_entity` for doorbells and Home Assistant-managed cameras/images. It is the preferred workflow because Home Assistant performs the capture directly; the phone never needs a camera URL, Home Assistant login, or LAN access.
 
@@ -190,7 +206,7 @@ action:
       image_entity: camera.front_door
 ```
 
-The phone never needs access to the Home Assistant camera URL. Gotify MU hosts the staged image, generates its canonical image extras, and serves the same attachment to Gotify MU Web, Channel/Chat history, and Android's normal Big Image notification path. This means the image remains available while the phone is on cellular even when Home Assistant and the camera are LAN-only.
+The phone never needs access to the Home Assistant camera URL. Monita hosts the staged image, generates its canonical image extras, and serves the same attachment to Monita Web, Channel/Chat history, and Android's normal Big Image notification path. This means the image remains available while the phone is on cellular even when Home Assistant and the camera are LAN-only.
 
 Home Assistant `image.*` entities use the same `image_entity` field:
 
@@ -215,15 +231,15 @@ action:
       image_url: "https://camera.example.com/current.jpg"
 ```
 
-The integration downloads the URL inside Home Assistant, validates that the response is a supported image, enforces a 10 MiB maximum, and uploads the bytes to Gotify MU. JPEG, PNG, GIF, and WebP are supported. The original URL is not forwarded to the phone or written into Gotify extras. `image_entity` and `image_url` are mutually exclusive.
+The integration downloads the URL inside Home Assistant, validates that the response is a supported image, enforces a 10 MiB maximum, and uploads the bytes to Monita. JPEG, PNG, GIF, and WebP are supported. The original URL is not forwarded to the phone or written into Gotify extras. `image_entity` and `image_url` are mutually exclusive.
 
 For the complete image lifecycle, security behavior, failure semantics, use cases, and compatibility requirements, see [Image notifications](docs/FEATURES.md#5-image-notifications).
 
-If image capture, download, validation, or upload fails, the action fails clearly instead of silently sending a text-only notification. A message-send failure after successful staging leaves the normal temporary server-side orphan for Gotify MU to expire; the integration does not attempt destructive cleanup.
+If image capture, download, validation, or upload fails, the action fails clearly instead of silently sending a text-only notification. A message-send failure after successful staging leaves the normal temporary server-side orphan for Monita to expire; the integration does not attempt destructive cleanup.
 
 ## Inbound / two-way messages
 
-When a client token is configured and **Enable inbound messages** is on, the integration maintains a Gotify MU WebSocket connection.
+When a client token is configured and **Enable inbound messages** is on, the integration maintains a Monita WebSocket connection.
 
 Each incoming message from the configured Channel updates the integration's **Messages** event entity with:
 
@@ -243,41 +259,41 @@ Messages sent by the same Home Assistant config entry are tagged and ignored by 
 
 ### Safety behavior
 
-Inbound Gotify MU messages are **events only**. The integration never interprets message text as a Home Assistant command and never executes services automatically. If you want a Chat Channel message to perform an action, create an explicit Home Assistant automation with the conditions and permissions appropriate for that action.
+Inbound Monita messages are **events only**. The integration never interprets message text as a Home Assistant command and never executes services automatically. If you want a Chat Channel message to perform an action, create an explicit Home Assistant automation with the conditions and permissions appropriate for that action.
 
 ## Credential validation
 
-Current Gotify MU servers provide a token-identity endpoint that returns the authenticated Channel metadata with the token redacted.
+Current Monita servers provide a token-identity endpoint that returns the authenticated Channel metadata with the token redacted.
 
 For older Gotify-compatible servers, application-token validation does **not** send a visible test message. The integration submits an intentionally incomplete `/message` request. Gotify authenticates before validating the body, so a valid token fails safely with HTTP 400 before message creation while an invalid token fails with HTTP 401/403.
 
 ## Reauthentication and reconfiguration
 
-If Gotify MU rejects a stored token, Home Assistant starts a reauthentication flow instead of requiring the integration to be deleted and recreated.
+If Monita rejects a stored token, Home Assistant starts a reauthentication flow instead of requiring the integration to be deleted and recreated.
 
 **Reconfigure** allows you to change the server URL, display name, TLS validation, or replace/remove the optional client token. Removing the client token automatically disables inbound streaming while keeping outbound notifications intact.
 
-The integration options expose the native pairing state as **Paired** or **Not paired**. A native pairing can be repaired with a new Gotify MU pairing code or removed independently without deleting the normal notification integration.
+The integration options expose the native pairing state as **Paired** or **Not paired**. A native pairing can be repaired with a new Monita pairing code or removed independently without deleting the normal notification integration.
 
-Removing a native pairing first revokes the shared bridge credential on Gotify MU. A force-local-remove recovery option is available when the remote server is unavailable or the remote pairing has already been replaced; use it only when the Gotify MU side will be cleaned up separately.
+Removing a native pairing first revokes the shared bridge credential on Monita. A force-local-remove recovery option is available when the remote server is unavailable or the remote pairing has already been replaced; use it only when the Monita side will be cleaned up separately.
 
 A paired entry also exposes a **Native bridge** connectivity binary sensor. Its attributes include bridge status, repair-required state, queued events, retry count, dropped-event count, last sent/received timestamps, and the last delivery error. Transient outbound failures use bounded exponential retry before an event is counted as dropped.
 
 ### Home Assistant Repairs
 
-If Gotify MU rejects the stored native bridge credential, the integration creates an actionable **Repairs** issue in Home Assistant. The issue directs the user to repair native pairing with a new one-time Gotify MU pairing code. The repair issue is cleared automatically after the bridge successfully reconnects, after a successful re-pair, when native pairing is removed, or when the integration entry itself is removed.
+If Monita rejects the stored native bridge credential, the integration creates an actionable **Repairs** issue in Home Assistant. The issue directs the user to repair native pairing with a new one-time Monita pairing code. The repair issue is cleared automatically after the bridge successfully reconnects, after a successful re-pair, when native pairing is removed, or when the integration entry itself is removed.
 
 ## Security
 
 - Tokens are stored in Home Assistant config-entry storage, not `configuration.yaml`.
 - Diagnostics redact application tokens, client tokens, the native shared secret, and private webhook identifiers/URLs.
 - The application token is never included in the config-entry unique ID.
-- Current Gotify MU servers return application identity with the token field removed.
-- Use HTTPS when the Gotify MU server is reached over an untrusted network.
+- Current Monita servers return application identity with the token field removed.
+- Use HTTPS when the Monita server is reached over an untrusted network.
 - Disable TLS verification only when you intentionally trust the target server/network.
 - Inbound messages never execute Home Assistant actions on their own.
 - Native webhook requests require the exact shared Bearer secret and only fire Home Assistant events.
-- The one-time Gotify MU pairing code is never persisted by Home Assistant.
+- The one-time Monita pairing code is never persisted by Home Assistant.
 
 ## Compatibility
 
@@ -288,7 +304,7 @@ POST /message
 X-Gotify-Key: <application-token>
 ```
 
-Image notifications additionally use Gotify MU's staged attachment endpoint:
+Image notifications additionally use Monita's staged attachment endpoint:
 
 ```text
 POST /application/current/attachment
@@ -296,9 +312,9 @@ X-Gotify-Key: <application-token>
 Content-Type: multipart/form-data
 ```
 
-The returned staged attachment ID is supplied to `POST /message` as `attachmentIds`. The integration does not invent public media URLs or manually build `gotify-mu::display.images` / `client::notification.bigImageUrl`; Gotify MU owns that canonical contract.
+The returned staged attachment ID is supplied to `POST /message` as `attachmentIds`. The integration does not invent public media URLs or manually build `gotify-mu::display.images` / `client::notification.bigImageUrl`; Monita owns that canonical contract.
 
-Gotify MU-specific capabilities are additive. Text-only outbound operation remains compatible with Gotify-style servers that do not expose the MU identity or staged attachment endpoints.
+Monita-specific capabilities are additive. Text-only outbound operation remains compatible with Gotify-style servers that do not expose the MU identity or staged attachment endpoints.
 
 ## Development
 
@@ -316,7 +332,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ### 1.0 release
 
-Gotify MU for Home Assistant 1.0 is the stable integration baseline for Gotify MU 1.0. The native pairing contract is versioned and validated together with the server release, while the existing application-token notification and optional client-token inbound-message paths remain supported.
+Monita for Home Assistant 1.0 is the stable integration baseline for Monita 1.0. The native pairing contract is versioned and validated together with the server release, while the existing application-token notification and optional client-token inbound-message paths remain supported.
 
 ## License
 
@@ -324,27 +340,16 @@ MIT
 
 ## Branding
 
-The branding in this repository is the canonical **Gotify-MU for Home Assistant** artwork supplied for this project. These files must not be regenerated, recolored, redrawn, or silently replaced during normal code, documentation, CI, or release work.
+**Monita for Home Assistant** is the active product identity. The supplied Monita brand sheet, logo treatment, app icon treatment, typography, and palette are the approved visual baseline for the rebrand.
 
-Canonical source assets:
+Brand palette:
 
-- `custom_components/gotify_mu/brand/gotify-mu-ha-banner.png` — full horizontal banner, 1600×500
-- `custom_components/gotify_mu/brand/gotify-mu-ha-logo.png` — full project logo, 1024×1024
-- `custom_components/gotify_mu/brand/gotify-mu-ha-icon.png` — square integration icon, 1024×1024
-- `custom_components/gotify_mu/brand/gotify-mu-ha-banner-q.png` — alternate/optimized banner supplied with the branding set
-- `custom_components/gotify_mu/brand/gotify-mu-ha-logo-q.png` — alternate/optimized logo supplied with the branding set
-- `custom_components/gotify_mu/brand/gotify-mu-ha-icon-q.png` — alternate/optimized icon supplied with the branding set
+- Primary — `#2563EB`
+- Blue — `#3B82F6`
+- Cyan — `#06B6D4`
+- Slate — `#0F172A`
+- Gray — `#9CA3B8`
 
-Compatibility aliases used by Home Assistant and repository documentation:
+During the transition, legacy Gotify-MU artwork may remain in the repository only as a compatibility/history asset until the approved Monita PNG asset set is committed. It must not be presented as the active product identity.
 
-- `custom_components/gotify_mu/brand/banner.png`
-- `custom_components/gotify_mu/brand/logo.png`
-- `custom_components/gotify_mu/brand/icon.png`
-
-The aliases above point to the exact canonical non-`-q` artwork.
-
-Branding integrity is enforced by CI using `.github/branding-lock.json` and `scripts/check_branding.py`. Any unexpected change to one of the six approved assets, its dimensions, or one of the compatibility aliases fails validation. Intentional future branding changes therefore require an explicit update to both the assets and the branding lock.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/gotify-mu-ha-icon.png" alt="Gotify MU for Home Assistant icon" width="220">
-</p>
+The approved Monita artwork must not be regenerated, recolored, redrawn, or silently replaced during normal feature work. Branding changes require an explicit branding update and corresponding CI lock update.
