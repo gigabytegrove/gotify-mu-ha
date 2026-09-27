@@ -71,7 +71,7 @@ class _Session:
 async def test_camera_entity_captures_current_frame(hass):
     """Camera entities are captured through Home Assistant's camera API."""
     with patch(
-        "custom_components.gotify_mu.media.camera_component.async_get_image",
+        "custom_components.gotify_mu.media._async_get_camera_image",
         new=AsyncMock(
             return_value=SimpleNamespace(content=JPEG, content_type="image/jpeg")
         ),
@@ -88,7 +88,7 @@ async def test_camera_entity_captures_current_frame(hass):
 async def test_image_entity_uses_supported_image_api(hass):
     """Image entities are retrieved through Home Assistant's image API."""
     with patch(
-        "custom_components.gotify_mu.media.image_component.async_get_image",
+        "custom_components.gotify_mu.media._async_get_image_entity",
         new=AsyncMock(
             return_value=SimpleNamespace(content=PNG, content_type="image/png")
         ),
