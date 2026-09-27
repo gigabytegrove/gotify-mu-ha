@@ -9,6 +9,13 @@ A Home Assistant custom integration for [Gotify MU](https://github.com/gigabyteg
 
 It provides native Home Assistant notification entities for Gotify MU Channels and optional realtime inbound Channel messages for two-way automations.
 
+## Documentation
+
+- **[Complete Feature & Usage Guide](docs/FEATURES.md)** — configuration, every supported feature, image-notification behavior, examples, security, troubleshooting-oriented health information, and credential requirements.
+- **[Changelog](CHANGELOG.md)** — version-by-version changes and compatibility notes.
+
+The README covers installation and the most common workflows. The complete guide is the canonical reference for all supported functionality.
+
 ## Features
 
 - UI setup through **Settings → Devices & services**
@@ -34,6 +41,27 @@ It provides native Home Assistant notification entities for Gotify MU Channels a
 - TLS verification control for private/self-signed deployments
 - HACS-compatible repository layout
 - Legacy fallback for Gotify-compatible servers without the MU identity endpoint
+
+### Feature documentation map
+
+Every user-facing feature above is documented in the [Complete Feature & Usage Guide](docs/FEATURES.md):
+
+| Area | Documentation |
+| --- | --- |
+| Setup, token roles, Channel identity, legacy validation | [Connection and credential model](docs/FEATURES.md#1-connection-and-credential-model) |
+| Multiple Gotify MU Channels | [Multiple Channels](docs/FEATURES.md#2-multiple-channels) |
+| Standard Home Assistant notify entity | [Standard notify entity](docs/FEATURES.md#3-standard-home-assistant-notify-entity) |
+| `gotify_mu.send`, priority, Markdown, extras | [Gotify MU action](docs/FEATURES.md#4-gotify_musend-action) |
+| Camera, image entity, and image URL notifications | [Image notifications](docs/FEATURES.md#5-image-notifications) |
+| Realtime inbound Channel messages | [Realtime inbound messages](docs/FEATURES.md#6-realtime-inbound-channel-messages) |
+| Native bidirectional Home Assistant bridge | [Native pairing](docs/FEATURES.md#7-native-home-assistant-pairing) |
+| Connection and native bridge health sensors | [Native bridge health](docs/FEATURES.md#8-native-bridge-health-sensor) |
+| Repairs, pairing repair/removal, force-local recovery | [Repairing native pairing](docs/FEATURES.md#9-repairing-native-pairing) |
+| Reauthentication and reconfiguration | [Reauthentication](docs/FEATURES.md#11-reauthentication) |
+| Default priority and inbound options | [Integration options](docs/FEATURES.md#13-integration-options) |
+| TLS, diagnostics, credential redaction, security | [Security model](docs/FEATURES.md#16-security-model) |
+| API/server compatibility and feature requirements | [Compatibility](docs/FEATURES.md#17-compatibility) |
+| Copyable everyday examples | [Common workflows](docs/FEATURES.md#18-common-workflows) |
 
 ## Requirements
 
@@ -150,6 +178,8 @@ If multiple Gotify MU entries are configured, the action UI can target a specifi
 
 For a camera entity, use `image_entity`. Home Assistant captures a fresh frame at the moment the action runs, uploads the actual image bytes to Gotify MU using the configured application token, and then sends the message with the returned staged attachment ID.
 
+**When to use it:** choose `image_entity` for doorbells and Home Assistant-managed cameras/images. It is the preferred workflow because Home Assistant performs the capture directly; the phone never needs a camera URL, Home Assistant login, or LAN access.
+
 ```yaml
 action:
   - action: gotify_mu.send
@@ -173,7 +203,7 @@ action:
       image_entity: image.latest_snapshot
 ```
 
-For an advanced HTTP/HTTPS source, use `image_url`:
+For an advanced HTTP/HTTPS source, use `image_url`. Use this only when the image already exists at a URL that Home Assistant itself can retrieve; `image_entity` is preferred for Home Assistant camera/image entities:
 
 ```yaml
 action:
@@ -185,7 +215,9 @@ action:
       image_url: "https://camera.example.com/current.jpg"
 ```
 
-The integration downloads the URL inside Home Assistant, validates that the response is a supported image, enforces a bounded size, and uploads the bytes to Gotify MU. The original URL is not forwarded to the phone or written into Gotify extras. `image_entity` and `image_url` are mutually exclusive.
+The integration downloads the URL inside Home Assistant, validates that the response is a supported image, enforces a 10 MiB maximum, and uploads the bytes to Gotify MU. JPEG, PNG, GIF, and WebP are supported. The original URL is not forwarded to the phone or written into Gotify extras. `image_entity` and `image_url` are mutually exclusive.
+
+For the complete image lifecycle, security behavior, failure semantics, use cases, and compatibility requirements, see [Image notifications](docs/FEATURES.md#5-image-notifications).
 
 If image capture, download, validation, or upload fails, the action fails clearly instead of silently sending a text-only notification. A message-send failure after successful staging leaves the normal temporary server-side orphan for Gotify MU to expire; the integration does not attempt destructive cleanup.
 
