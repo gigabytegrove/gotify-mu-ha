@@ -1,7 +1,7 @@
 """Tests for Monita server-centric configuration."""
 
-from homeassistant import config_entries
 import pytest
+from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
