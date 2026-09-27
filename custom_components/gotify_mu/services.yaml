@@ -1,10 +1,10 @@
 send:
   name: Send notification
-  description: Send a text, Markdown, or hosted image notification through a configured Gotify MU channel.
+  description: Send a text, Markdown, or hosted image notification through a configured Monita channel.
   fields:
     entry_id:
-      name: Gotify MU entry
-      description: The configured Gotify MU channel. If omitted, the first loaded entry is used.
+      name: Monita entry
+      description: The configured Monita channel. If omitted, the first loaded entry is used.
       required: false
       selector:
         config_entry:
@@ -22,7 +22,7 @@ send:
           multiline: true
     priority:
       name: Priority
-      description: Gotify priority from 0 through 10.
+      description: Monita priority from 0 through 10.
       required: false
       selector:
         number:
@@ -39,7 +39,7 @@ send:
         boolean:
     image_entity:
       name: Image entity
-      description: Preferred image workflow. Capture the current frame/image from a Home Assistant camera or image entity, then upload the actual bytes to Gotify MU so remote and mobile clients do not need access to Home Assistant or the camera.
+      description: Preferred image workflow. Capture the current frame/image from a Home Assistant camera or image entity, then upload the actual bytes to Monita so remote and mobile clients do not need access to Home Assistant or the camera.
       required: false
       selector:
         entity:
@@ -48,14 +48,14 @@ send:
             - image
     image_url:
       name: Image URL
-      description: Advanced image workflow. Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant (maximum 10 MiB), then upload the actual bytes to Gotify MU. Mutually exclusive with Image entity; the source URL is not forwarded to clients.
+      description: Advanced image workflow. Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant (maximum 10 MiB), then upload the actual bytes to Monita. Mutually exclusive with Image entity; the source URL is not forwarded to clients.
       required: false
       selector:
         text:
           type: url
     extras:
-      name: Gotify extras
-      description: Optional advanced Gotify extras. The Home Assistant origin marker is merged into these values.
+      name: Monita extras
+      description: Optional advanced Monita extras. The Home Assistant origin marker is merged into these values.
       required: false
       selector:
         object:
