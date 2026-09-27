@@ -1,4 +1,4 @@
-"""Gotify MU integration."""
+"""Monita integration."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ StatusCallback = Callable[[], None]
 
 @dataclass(slots=True)
 class GotifyMURuntimeData:
-    """Runtime data for one Gotify MU config entry."""
+    """Runtime data for one Monita config entry."""
 
     client: GotifyMUClient
     channel_id: int | None
@@ -156,7 +156,7 @@ async def _async_stream_loop(
     hass: HomeAssistant,
     entry: GotifyMUConfigEntry,
 ) -> None:
-    """Maintain the optional realtime Gotify MU stream."""
+    """Maintain the optional realtime Monita stream."""
     runtime = entry.runtime_data
     delay = 1
 
@@ -204,7 +204,7 @@ async def _async_stream_loop(
             runtime.stream_reconnects += 1
             runtime.async_set_stream_status(False, str(err))
             _LOGGER.debug(
-                "Gotify MU stream disconnected for %s: %s; retrying in %ss",
+                "Monita stream disconnected for %s: %s; retrying in %ss",
                 entry.title,
                 err,
                 delay,
@@ -214,7 +214,7 @@ async def _async_stream_loop(
         except Exception as err:  # Defensive: isolate stream failures from HA.
             runtime.stream_reconnects += 1
             runtime.async_set_stream_status(False, str(err))
-            _LOGGER.exception("Unexpected Gotify MU stream error for %s", entry.title)
+            _LOGGER.exception("Unexpected Monita stream error for %s", entry.title)
 
         try:
             await asyncio.wait_for(runtime._stop_event.wait(), timeout=delay)
@@ -224,12 +224,12 @@ async def _async_stream_loop(
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
-    """Set up Gotify MU integration-level actions."""
+    """Set up Monita integration-level actions."""
 
     async def handle_send(call: ServiceCall) -> None:
         entries = hass.config_entries.async_entries(DOMAIN)
         if not entries:
-            raise ServiceValidationError("No Gotify MU instances are configured")
+            raise ServiceValidationError("No Monita instances are configured")
 
         requested = call.data.get("entry_id")
         if requested is None:
@@ -245,10 +245,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
         if selected is None:
             raise ServiceValidationError(
-                "No loaded Gotify MU config entry matches the request"
+                "No loaded Monita config entry matches the request"
             )
         if selected.state is not ConfigEntryState.LOADED:
-            raise ServiceValidationError("Requested Gotify MU config entry is not loaded")
+            raise ServiceValidationError("Requested Monita config entry is not loaded")
 
         typed_entry: GotifyMUConfigEntry = selected
         runtime = typed_entry.runtime_data
@@ -291,15 +291,15 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                     raise
                 except GotifyMURateLimitError as err:
                     raise HomeAssistantError(
-                        "Gotify MU rate limited the image upload"
+                        "Monita rate limited the image upload"
                     ) from err
                 except GotifyMUConnectionError as err:
                     raise HomeAssistantError(
-                        "Could not connect to Gotify MU media endpoint"
+                        "Could not connect to Monita media endpoint"
                     ) from err
                 except GotifyMUError as err:
                     raise HomeAssistantError(
-                        f"Gotify MU rejected the image: {err}"
+                        f"Monita rejected the image: {err}"
                     ) from err
                 attachment_ids = [attachment.id]
 
@@ -318,11 +318,11 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             )
         except GotifyMUAuthError as err:
             selected.async_start_reauth(hass)
-            raise HomeAssistantError("Gotify MU rejected the application token") from err
+            raise HomeAssistantError("Monita rejected the application token") from err
         except GotifyMURateLimitError as err:
-            raise HomeAssistantError("Gotify MU rate limited the notification") from err
+            raise HomeAssistantError("Monita rate limited the notification") from err
         except GotifyMUConnectionError as err:
-            raise HomeAssistantError(f"Could not connect to Gotify MU: {err}") from err
+            raise HomeAssistantError(f"Could not connect to Monita: {err}") from err
         except GotifyMUError as err:
             raise HomeAssistantError(str(err)) from err
 
@@ -358,12 +358,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         version=2,
         minor_version=0,
     )
-    _LOGGER.info("Migrated Gotify MU config entry %s to version 2", entry.title)
+    _LOGGER.info("Migrated Monita config entry %s to version 2", entry.title)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> bool:
-    """Set up Gotify MU from a config entry."""
+    """Set up Monita from a config entry."""
     client = GotifyMUClient(
         async_get_clientsession(hass),
         entry.data[CONF_SERVER_URL],
@@ -391,7 +391,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     if application is not None:
         if configured_channel_id is not None and application.id != configured_channel_id:
             raise ConfigEntryAuthFailed(
-                "The application token belongs to a different Gotify MU Channel"
+                "The application token belongs to a different Monita Channel"
             )
         configured_channel_id = application.id
         data[CONF_CHANNEL_ID] = application.id
@@ -400,7 +400,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     if configured_channel_id is not None and entry.data.get(CONF_CLIENT_TOKEN):
         if not any(channel.id == configured_channel_id for channel in channels):
             raise ConfigEntryAuthFailed(
-                "The configured Gotify MU client token cannot access this Channel"
+                "The configured Monita client token cannot access this Channel"
             )
 
     if data != dict(entry.data):
@@ -441,14 +441,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
         entry.async_create_background_task(
             hass,
             _async_stream_loop(hass, entry),
-            f"Gotify MU stream: {entry.title}",
+            f"Monita stream: {entry.title}",
         )
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> bool:
-    """Unload a Gotify MU config entry."""
+    """Unload a Monita config entry."""
     entry.runtime_data.async_stop()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
@@ -456,5 +456,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) ->
 async def async_remove_entry(
     hass: HomeAssistant, entry: GotifyMUConfigEntry
 ) -> None:
-    """Clean up repair issues when a Gotify MU entry is removed."""
+    """Clean up repair issues when a Monita entry is removed."""
     async_delete_native_bridge_repair_issue(hass, entry.entry_id)
