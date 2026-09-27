@@ -47,6 +47,8 @@ During setup, Home Assistant:
 
 The same client token is then used for Channel discovery, inbound WebSocket messages, and normal Push Message publishing.
 
+To create the token in Monita, open **Clients → Create Client**, give it a recognizable name such as **Home Assistant**, choose the desired inactivity expiration, create it, and copy the token Monita displays.
+
 ### Channel permissions
 
 Monita returns the current account's effective role for each Channel. Home Assistant uses that metadata to determine whether the Channel is push-capable.
