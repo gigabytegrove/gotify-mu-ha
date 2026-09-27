@@ -14,6 +14,7 @@ It provides native Home Assistant notification entities for Monita Channels, ima
 
 - **[Complete Feature & Usage Guide](docs/FEATURES.md)** — configuration, every supported feature, image-notification behavior, examples, security, troubleshooting-oriented health information, and credential requirements.
 - **[Changelog](CHANGELOG.md)** — version-by-version changes and compatibility notes.
+- **[Monita Rebrand & Upgrade Guide](docs/REBRANDING.md)** — explains the Gotify-MU → Monita transition and which technical identifiers intentionally remain unchanged.
 
 The README covers installation and the most common workflows. The complete guide is the canonical reference for all supported functionality.
 
