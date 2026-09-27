@@ -62,6 +62,7 @@ from .native import (
     native_pairing_is_configured,
     remove_native_pairing_data,
 )
+from .repairs import async_delete_native_bridge_repair_issue
 
 
 class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -608,6 +609,9 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
                         self.hass.config_entries.async_update_entry(
                             self.config_entry, data=data
                         )
+                        async_delete_native_bridge_repair_issue(
+                            self.hass, self.config_entry.entry_id
+                        )
                     finally:
                         pending.async_unregister()
                 except ValueError:
@@ -675,6 +679,9 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
                 data = remove_native_pairing_data(dict(self.config_entry.data))
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=data
+                )
+                async_delete_native_bridge_repair_issue(
+                    self.hass, self.config_entry.entry_id
                 )
                 self.hass.config_entries.async_schedule_reload(
                     self.config_entry.entry_id

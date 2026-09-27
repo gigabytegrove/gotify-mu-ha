@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.core import Event
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -36,6 +37,7 @@ from custom_components.gotify_mu.native import (
     _NativeDeliveryResult,
     async_pair_native,
 )
+from custom_components.gotify_mu.repairs import native_bridge_issue_id
 
 SERVER = "http://gotify-mu.local:8080"
 PAIR_URL = f"{SERVER}/integrations/home-assistant/native/pair"
@@ -454,12 +456,30 @@ async def test_native_event_auth_failure_marks_repair_required(hass, aioclient_m
         secret=SHARED_SECRET,
         event_path=EVENT_PATH,
         webhook_id=WEBHOOK_ID,
+        entry_id="repair-entry",
     )
     event = Event("state_changed", {"entity_id": "binary_sensor.front_door"})
     assert not await bridge._async_post_event(event)
     assert bridge.repair_required
     assert bridge.status == "repair_required"
     assert bridge.dropped_events == 1
+
+    registry = ir.async_get(hass)
+    issue = registry.async_get_issue(
+        DOMAIN, native_bridge_issue_id("repair-entry")
+    )
+    assert issue is not None
+    assert issue.severity is ir.IssueSeverity.ERROR
+    assert issue.translation_key == "native_bridge_auth_failed"
+    assert issue.translation_placeholders == {"name": "Home Assistant"}
+
+    bridge._async_mark_connected(sent=True)
+    assert (
+        registry.async_get_issue(
+            DOMAIN, native_bridge_issue_id("repair-entry")
+        )
+        is None
+    )
 
 
 async def test_diagnostics_redact_native_credentials(hass):

@@ -26,6 +26,10 @@ from .const import (
     DOMAIN,
     REQUEST_TIMEOUT_SECONDS,
 )
+from .repairs import (
+    async_create_native_bridge_repair_issue,
+    async_delete_native_bridge_repair_issue,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -321,6 +325,7 @@ class GotifyMUNativeBridge:
         secret: str,
         event_path: str,
         webhook_id: str,
+        entry_id: str | None = None,
     ) -> None:
         self._hass = hass
         self._session = session
@@ -330,6 +335,7 @@ class GotifyMUNativeBridge:
         self._secret = secret
         self._event_path = event_path
         self._webhook_id = webhook_id
+        self._entry_id = entry_id or webhook_id
         self._queue: asyncio.Queue[Event[Any]] = asyncio.Queue(
             maxsize=_NATIVE_QUEUE_MAXSIZE
         )
@@ -383,6 +389,7 @@ class GotifyMUNativeBridge:
     def _async_mark_connected(
         self, *, sent: bool = False, received: bool = False
     ) -> None:
+        async_delete_native_bridge_repair_issue(self._hass, self._entry_id)
         changed = self.status != "connected" or self.last_error is not None
         self.status = "connected"
         self.last_error = None
@@ -405,6 +412,11 @@ class GotifyMUNativeBridge:
 
     @callback
     def _async_mark_repair_required(self, error: str) -> None:
+        async_create_native_bridge_repair_issue(
+            self._hass,
+            entry_id=self._entry_id,
+            name=self._name,
+        )
         if self.status != "repair_required" or self.last_error != error:
             self.status = "repair_required"
             self.last_error = error

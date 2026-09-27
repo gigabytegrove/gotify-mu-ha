@@ -49,6 +49,7 @@ from .const import (
 )
 from .helpers import channel_unique_id, fallback_unique_id
 from .native import GotifyMUNativeBridge, native_pairing_is_configured
+from .repairs import async_delete_native_bridge_repair_issue
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -378,6 +379,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
             secret=data[CONF_NATIVE_SECRET],
             event_path=data[CONF_NATIVE_EVENT_PATH],
             webhook_id=data[CONF_NATIVE_WEBHOOK_ID],
+            entry_id=entry.entry_id,
         )
         runtime.native_bridge = native_bridge
         native_bridge.async_start()
@@ -399,3 +401,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) ->
     """Unload a Gotify MU config entry."""
     entry.runtime_data.async_stop()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: GotifyMUConfigEntry
+) -> None:
+    """Clean up repair issues when a Gotify MU entry is removed."""
+    async_delete_native_bridge_repair_issue(hass, entry.entry_id)

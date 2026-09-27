@@ -185,6 +185,10 @@ Removing a native pairing first revokes the shared bridge credential on Gotify M
 
 A paired entry also exposes a **Native bridge** connectivity binary sensor. Its attributes include bridge status, repair-required state, queued events, retry count, dropped-event count, last sent/received timestamps, and the last delivery error. Transient outbound failures use bounded exponential retry before an event is counted as dropped.
 
+### Home Assistant Repairs
+
+If Gotify MU rejects the stored native bridge credential, the integration creates an actionable **Repairs** issue in Home Assistant. The issue directs the user to repair native pairing with a new one-time Gotify MU pairing code. The repair issue is cleared automatically after the bridge successfully reconnects, after a successful re-pair, when native pairing is removed, or when the integration entry itself is removed.
+
 ## Security
 
 - Tokens are stored in Home Assistant config-entry storage, not `configuration.yaml`.
@@ -215,7 +219,9 @@ The repository includes:
 - Python compile and JSON validation
 - Ruff linting
 - Hassfest validation
-- Home Assistant config-flow tests
+- Home Assistant config-flow and native-pairing tests
+- Runtime regression tests for notification delivery, service actions, inbound streaming, event entities, and connection sensors
+- Home Assistant Repairs regression coverage
 - Locked branding integrity validation
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.

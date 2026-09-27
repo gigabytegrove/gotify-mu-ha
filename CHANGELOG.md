@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0 - 2026-09-26
+
+### Added
+
+- Native Home Assistant Repairs issue when Gotify MU rejects the stored native bridge credential.
+- Automatic repair-issue cleanup after successful bridge recovery, successful re-pairing, pairing removal, or integration removal.
+- Regression coverage for the notify entity, `gotify_mu.send`, inbound WebSocket channel/self-loop filtering, inbound event entity payloads, and both connection binary sensors.
+- Repairs regression coverage proving rejected native credentials create an actionable Home Assistant issue and successful recovery clears it.
+
+### Changed
+
+- Native bridge instances are now tied to their Home Assistant config-entry ID so repair issues remain unique across multiple Gotify MU entries.
+
+
 ## 1.0.3 - 2026-09-26
 
 ### Hardened

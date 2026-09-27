@@ -165,5 +165,11 @@
       "name": "Send notification",
       "description": "Send a notification through a configured Gotify MU Channel."
     }
+  },
+  "issues": {
+    "native_bridge_auth_failed": {
+      "title": "Gotify MU native bridge needs repair",
+      "description": "Gotify MU rejected the stored native bridge credential for {name}. Open Settings → Devices & services → Gotify MU, choose Configure → Native Home Assistant pairing → Repair pairing, generate a new one-time pairing code in Gotify MU, and pair the connection again."
+    }
   }
 }
