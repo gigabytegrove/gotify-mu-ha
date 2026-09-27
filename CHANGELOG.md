@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 - 2026-09-26
+
+### Fixed
+
+- Restored the valid Gotify MU + Home Assistant logo and icon assets after the 1.0.0 branding PNGs were found to be truncated/corrupt.
+- Updated README image references to use the raw repository assets directly so GitHub renders the complete branding reliably.
+
+
 ## 1.0.0 - 2026-09-26
 
 Stable tandem release for Gotify MU 1.0. This promotes the validated native bridge baseline with application-token notifications, optional client-token inbound messages, native no-LLT pairing, authenticated bidirectional events, non-destructive repair, authenticated remote revoke, bridge health visibility, bounded delivery retry, reauthentication/reconfiguration, diagnostics redaction, and full Home Assistant validation coverage.

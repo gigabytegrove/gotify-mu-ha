@@ -1,7 +1,7 @@
 # Gotify MU for Home Assistant
 
 <p align="center">
-  <img src="custom_components/gotify_mu/brand/logo.png" alt="Gotify MU HA - Home Assistant Integration" width="520">
+  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/logo.png" alt="Gotify MU HA - Home Assistant Integration" width="520">
 </p>
 
 
@@ -237,5 +237,5 @@ The integration ships its Home Assistant brand assets directly with the custom c
 The HA integration identity deliberately stays close to the Gotify MU mascot while adding the Home Assistant envelope mark, so it is immediately recognizable as the Gotify MU ↔ Home Assistant connector.
 
 <p align="center">
-  <img src="custom_components/gotify_mu/brand/icon.png" alt="Gotify MU HA integration icon" width="200">
+  <img src="https://raw.githubusercontent.com/gigabytegrove/gotify-mu-ha/main/custom_components/gotify_mu/brand/icon.png" alt="Gotify MU HA integration icon" width="200">
 </p>
