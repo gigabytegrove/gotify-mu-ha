@@ -42,6 +42,28 @@ async def async_get_config_entry_diagnostics(
         "runtime": {
             "channel_id": runtime.channel_id,
             "channel_name": runtime.channel_name,
+            "selected_channel_ids": list(runtime.active_channel_ids),
+            "selected_channels": [
+                {
+                    "id": channel_id,
+                    "name": (
+                        runtime.channel(channel_id).name
+                        if runtime.channel(channel_id) is not None
+                        else None
+                    ),
+                    "role": (
+                        runtime.channel(channel_id).role
+                        if runtime.channel(channel_id) is not None
+                        else None
+                    ),
+                    "can_post": (
+                        runtime.channel(channel_id).can_post
+                        if runtime.channel(channel_id) is not None
+                        else False
+                    ),
+                }
+                for channel_id in runtime.active_channel_ids
+            ],
             "inbound_enabled": runtime.inbound_enabled,
             "stream_connected": runtime.stream_connected,
             "stream_reconnects": runtime.stream_reconnects,
