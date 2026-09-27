@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.0 - 2026-09-27
+
+### Rebranded
+
+- Renamed the user-facing integration to **Monita for Home Assistant**, formerly Gotify-MU for Home Assistant.
+- Updated the Home Assistant manifest, HACS display name, config flows, options, services UI, entities, diagnostics terminology, Repairs text, release workflow titles, and user-facing runtime messages to the Monita brand.
+- Adopted the approved Monita palette: Primary `#2563EB`, Blue `#3B82F6`, Cyan `#06B6D4`, Slate `#0F172A`, and Gray `#9CA3B8`.
+- Added explicit rebrand/upgrade documentation so existing users understand that the name change does not require reconfiguration.
+
+### Compatibility
+
+- Preserved the Home Assistant integration domain `gotify_mu`, component directory `custom_components/gotify_mu`, and action `gotify_mu.send` so existing installations and automations continue to work.
+- Preserved existing config-entry versions, entity unique IDs, token storage, API routes, WebSocket behavior, origin extras, and pairing contracts.
+- Internal Python class names that contain `GotifyMU` remain implementation details for this compatibility release and do not change the user-facing Monita identity.
+- Gotify protocol terminology remains only where it describes API compatibility or an established wire-format field.
+
+### Branding transition
+
+- The supplied **Monita for Home Assistant** brand sheet is the authoritative design source for the new visual identity.
+- Legacy Gotify-MU artwork remains transitional until the approved Monita icon/logo/banner files replace the active compatibility aliases and the branding lock is updated.
+- The visual asset replacement is intentionally separated from textual/runtime rebranding so an incomplete or regenerated logo cannot silently become the canonical artwork.
+
+
 ## 1.2.0 - 2026-09-27
 
 ### Added
