@@ -60,9 +60,11 @@ class GotifyMUMessageEventEntity(EventEntity):
             channel_id = int(raw_channel_id)
         except (TypeError, ValueError):
             channel_id = None
+        runtime = self._entry.runtime_data
+        channel_lookup = getattr(runtime, "channel", None)
         channel = (
-            self._entry.runtime_data.channel(channel_id)
-            if channel_id is not None
+            channel_lookup(channel_id)
+            if channel_id is not None and callable(channel_lookup)
             else None
         )
         event_data = {
