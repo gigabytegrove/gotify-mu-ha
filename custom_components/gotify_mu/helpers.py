@@ -1,4 +1,4 @@
-"""Shared helpers for Gotify MU."""
+"""Shared helpers for Monita."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 
 def normalize_server_url(value: str) -> str:
-    """Normalize and validate a Gotify MU base URL."""
+    """Normalize and validate a Monita base URL."""
     url = value.strip().rstrip("/")
     parsed = urlsplit(url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
@@ -26,5 +26,5 @@ def fallback_unique_id(server_url: str, app_token: str) -> str:
 
 
 def channel_unique_id(server_url: str, channel_id: int) -> str:
-    """Build a stable ID from the Gotify MU channel ID when available."""
+    """Build a stable ID from the Monita channel ID when available."""
     return f"{server_url}|channel:{channel_id}"
