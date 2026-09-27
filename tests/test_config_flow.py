@@ -1,7 +1,8 @@
 """Tests for Monita server-centric configuration."""
 
 from homeassistant import config_entries
-from homeassistant.data_entry_flow import FlowResultType
+import pytest
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.gotify_mu.config_flow import GotifyMUOptionsFlow
@@ -155,14 +156,11 @@ async def test_channel_selection_rejects_unknown_channel(hass, aioclient_mock):
             CONF_VERIFY_SSL: True,
         },
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {CONF_CHANNEL_IDS: ["99"]},
-    )
-
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "channels"
-    assert result["errors"] == {"base": "channel_not_found"}
+    with pytest.raises(InvalidData):
+        await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_CHANNEL_IDS: ["99"]},
+        )
 
 
 async def test_manage_channels_refreshes_live_server_list(hass, aioclient_mock):
