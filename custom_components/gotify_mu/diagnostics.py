@@ -32,6 +32,28 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a Monita config entry."""
     runtime = entry.runtime_data
+    active_channel_ids = list(
+        getattr(
+            runtime,
+            "active_channel_ids",
+            (
+                (runtime.channel_id,)
+                if getattr(runtime, "channel_id", None) is not None
+                else ()
+            ),
+        )
+    )
+    channel_lookup = getattr(runtime, "channel", None)
+
+    def channel_metadata(channel_id: int) -> dict[str, Any]:
+        channel = channel_lookup(channel_id) if callable(channel_lookup) else None
+        return {
+            "id": channel_id,
+            "name": channel.name if channel is not None else None,
+            "role": channel.role if channel is not None else None,
+            "can_post": channel.can_post if channel is not None else False,
+        }
+
     return {
         "entry": {
             "title": entry.title,
@@ -42,6 +64,10 @@ async def async_get_config_entry_diagnostics(
         "runtime": {
             "channel_id": runtime.channel_id,
             "channel_name": runtime.channel_name,
+            "selected_channel_ids": active_channel_ids,
+            "selected_channels": [
+                channel_metadata(channel_id) for channel_id in active_channel_ids
+            ],
             "inbound_enabled": runtime.inbound_enabled,
             "stream_connected": runtime.stream_connected,
             "stream_reconnects": runtime.stream_reconnects,

@@ -38,9 +38,9 @@ class GotifyMUMessageEventEntity(EventEntity):
         self._attr_unique_id = f"{entry.unique_id}_message_event"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
-            name=entry.runtime_data.channel_name,
+            name=entry.title,
             manufacturer="Monita",
-            model="Notification Channel",
+            model="Notification Server",
             configuration_url=entry.data[CONF_SERVER_URL],
         )
 
@@ -55,9 +55,22 @@ class GotifyMUMessageEventEntity(EventEntity):
     @callback
     def _async_handle_message(self, message: dict[str, Any]) -> None:
         """Record an inbound Monita message."""
+        raw_channel_id = message.get("appid")
+        try:
+            channel_id = int(raw_channel_id)
+        except (TypeError, ValueError):
+            channel_id = None
+        runtime = self._entry.runtime_data
+        channel_lookup = getattr(runtime, "channel", None)
+        channel = (
+            channel_lookup(channel_id)
+            if channel_id is not None and callable(channel_lookup)
+            else None
+        )
         event_data = {
             "message_id": message.get("id"),
-            "channel_id": message.get("appid"),
+            "channel_id": channel_id,
+            "channel_name": channel.name if channel is not None else None,
             "title": message.get("title"),
             "message": message.get("message"),
             "priority": message.get("priority"),

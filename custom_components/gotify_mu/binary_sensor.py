@@ -38,9 +38,9 @@ class _GotifyMUBaseConnectionSensor(BinarySensorEntity):
         self._entry = entry
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
-            name=entry.runtime_data.channel_name,
+            name=entry.title,
             manufacturer="Monita",
-            model="Notification Channel",
+            model="Notification Server",
             configuration_url=entry.data[CONF_SERVER_URL],
         )
 

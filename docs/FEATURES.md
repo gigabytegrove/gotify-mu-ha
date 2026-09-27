@@ -4,11 +4,11 @@ This is the canonical user-facing guide for every supported Monita for Home Assi
 
 The integration is designed around three separate paths:
 
-1. **Outbound notifications** — Home Assistant publishes to a Monita Channel with an application token.
-2. **Realtime inbound Channel messages** — Home Assistant listens to Monita with an optional client token.
+1. **Server-centric outbound notifications** — Home Assistant connects to one Monita server with a client token, discovers accessible Channels, and publishes to the selected Channel using Monita's `appid` routing.
+2. **Realtime inbound Channel messages** — the same server connection listens to Monita and filters messages to the Channels selected in Home Assistant.
 3. **Native Home Assistant bridge** — an optional paired, authenticated event bridge between Home Assistant and Monita.
 
-These paths are additive. You can use outbound notifications alone, add inbound messages later, and pair the native bridge independently.
+Legacy per-Channel application-token entries remain supported for upgrade compatibility.
 
 ## Product-name transition
 
@@ -17,91 +17,91 @@ Monita for Home Assistant is the successor name for **Gotify-MU for Home Assista
 For compatibility, existing YAML and stored objects continue to use:
 
 - `gotify_mu` as the Home Assistant integration domain
-- `gotify_mu.send` as the full publishing action
+- `gotify_mu.send` as the Push Message action ID
 - `custom_components/gotify_mu` as the custom component directory
-- `homeassistant::gotify_mu` as the existing origin extra used for loop prevention
+- `homeassistant::gotify_mu` as the existing origin-extra namespace used for loop prevention
 
-These identifiers are compatibility contracts, not the active product name. Existing automations do not need to be rewritten for the Monita rebrand.
+These identifiers are compatibility contracts, not the active product name.
 
 ---
 
 ## 1. Connection and credential model
 
-Each Home Assistant config entry represents one Monita Channel.
+### New server-centric setup
 
-Required for normal outbound notifications:
+A new Home Assistant config entry represents **one Monita server**, not one Channel.
+
+Required:
 
 - Monita server URL
-- Channel application token
+- Monita client token
+- TLS verification preference
 
-Optional:
+During setup, Home Assistant:
 
-- Monita client token, required only for realtime inbound Channel messages
-- Native pairing, required only for the bidirectional native Home Assistant event bridge
+1. verifies the server is reachable;
+2. validates the client token against the current-user endpoint;
+3. queries `GET /application` for the Channels the account can access;
+4. displays those Channels in a multi-select list;
+5. stores only the Channel IDs you choose to expose.
 
-The application token remains the publishing credential for:
+The same client token is then used for Channel discovery, inbound WebSocket messages, and normal Push Message publishing.
 
-- the standard Home Assistant notify entity
-- `gotify_mu.send`
-- staged image uploads
+To create the token in Monita, open **Clients → Create Client**, give it a recognizable name such as **Home Assistant**, choose the desired inactivity expiration, create it, and copy the token Monita displays.
 
-Native pairing does not replace the application token.
+### Channel permissions
 
-### Application token validation
+Monita returns the current account's effective role for each Channel. Home Assistant uses that metadata to determine whether the Channel is push-capable.
 
-On current Monita servers, the integration uses the application identity endpoint to identify the exact Channel associated with the application token.
+Roles that can publish are:
 
-This provides:
+- owner
+- manager
+- publisher
+- member when that Channel allows member posting
 
-- stable Channel identity
-- automatic Channel naming
-- duplicate-entry protection
-- protection against accidentally replacing an entry with a token belonging to another Channel
+A read-only Channel can still be selected so inbound messages from it reach Home Assistant, but it does not receive a push-capable notification entity.
 
-On older Gotify-compatible servers without the identity endpoint, the integration uses a safe validation fallback that does not create a visible test notification.
+### Legacy per-Channel entries
 
-### Client token validation
+Entries created before the server-centric model may still contain an application token and a single Channel ID.
 
-If a client token is supplied, the integration verifies that the token belongs to a user who can access the configured Channel.
+Those entries continue to work. Migration to config-entry version 3 preserves the old unique ID and entity identity while adding the selected-Channel option internally.
 
-A client token is never required for outbound-only use.
+This avoids breaking existing dashboards and automations.
 
 ---
 
-## 2. Multiple Channels
+## 2. Multiple Channels and Manage Channels
 
-To connect Home Assistant to multiple Monita Channels, add the integration more than once.
+You no longer add the integration once per Channel.
 
-Example:
+Example: one Monita server may expose:
 
 - Security
 - Home
 - Greenhouse
 - Server Alerts
+- Doorbells
+- Infrastructure
 
-Each entry gets its own:
+During initial setup, choose any combination of those Channels.
 
-- notify entity
-- Channel identity
-- application token
-- optional client token
-- inbound message event entity when enabled
-- inbound connection sensor when enabled
-- optional native bridge
+Later, open:
 
-When using `gotify_mu.send`, choose a specific config entry with `entry_id`.
+**Settings → Devices & services → Monita → Configure → Manage Channels**
 
-If `entry_id` is omitted, the first loaded Monita entry is used.
+Every time that screen opens, Home Assistant queries Monita again. Newly created Channels appear automatically, deleted Channels disappear, and role changes are reflected in the labels.
 
-For production automations with multiple entries, explicitly select the intended entry.
+Saving the selection reloads the integration.
+
+For each selected push-capable Channel, Home Assistant creates a separate notify entity. All selected Channels share the same server connection, WebSocket, credentials, diagnostics, and native bridge.
 
 ---
 
-## 3. Standard Home Assistant notify entity
+## 3. Standard Home Assistant notify entities
 
-Every configured Monita Channel creates a standard Home Assistant notify entity.
-
-Use this when you need ordinary Home Assistant text/title notification behavior.
+Each selected Channel that the configured Monita account can post to becomes a standard Home Assistant notify entity.
 
 Example:
 
@@ -109,113 +109,104 @@ Example:
 action:
   - action: notify.send_message
     target:
-      entity_id: notify.gotify_mu_notifications
+      entity_id: notify.security
     data:
-      title: "Home"
-      message: "Home Assistant is online."
+      title: "Security"
+      message: "Front door opened."
 ```
 
 The exact entity ID is assigned by Home Assistant. Use the entity picker rather than assuming the example ID.
 
+The notify entity exposes non-secret Channel metadata including:
+
+- Channel ID
+- Channel name
+- current Channel role
+- Channel type
+
 ### Default priority
 
-The notify entity uses the integration's configured **Default priority**.
+The notify entities use the integration's configured **Default priority**.
 
 Configure it from:
 
 **Settings → Devices & services → Monita → Configure → Notifications and inbound messages**
 
-Priority range:
-
-- 0 through 10
-
-The default is 5.
-
-### What the standard notify entity does not do
-
-The standard notify entity intentionally remains a stable text/title path.
-
-For:
-
-- image notifications
-- per-message priority
-- Markdown
-- advanced Gotify extras
-
-use `gotify_mu.send`.
+Priority range: 0 through 10. The default is 5.
 
 ---
 
-## 4. `gotify_mu.send` action
+## 4. Push Message action (`gotify_mu.send`)
 
-`gotify_mu.send` is the full Monita publishing action. The legacy-looking service name is intentionally retained for upgrade compatibility.
+The Home Assistant action picker presents this as **Push Message**.
+
+The technical action ID remains `gotify_mu.send` so existing automations continue working.
 
 Supported fields:
 
 | Field | Required | Purpose |
 | --- | --- | --- |
 | `message` | Yes | Notification/message body |
+| `channel` | Recommended | Monita notify entity representing the destination Channel |
 | `title` | No | Notification title |
-| `priority` | No | Per-message Gotify priority from 0–10 |
-| `markdown` | No | Enables Gotify Markdown display extras |
-| `entry_id` | No | Selects a specific Monita config entry |
+| `priority` | No | Per-message Monita priority from 0–10 |
+| `markdown` | No | Enables Gotify-compatible Markdown display extras |
+| `entry_id` | No | Legacy/advanced server-entry targeting |
 | `image_entity` | No | Captures a current `camera.*` or `image.*` image |
 | `image_url` | No | Downloads an HTTP/HTTPS image inside Home Assistant |
-| `extras` | No | Advanced caller-supplied Gotify extras |
+| `extras` | No | Advanced caller-supplied extras |
 
 `image_entity` and `image_url` are mutually exclusive.
 
-### Basic example
+When a server exposes more than one Channel, choose **Channel** in the action editor. The picker shows Home Assistant notify entities, so users do not need to know numeric Monita Channel IDs.
+
+### Basic Push Message
 
 ```yaml
 action:
   - action: gotify_mu.send
     data:
-      title: "Server"
-      message: "Backup completed."
+      channel: notify.security
+      title: "Security"
+      message: "Front door opened."
 ```
 
-### Priority example
+### Priority and Markdown
 
 ```yaml
 action:
   - action: gotify_mu.send
     data:
-      title: "Critical Alert"
-      message: "UPS is on battery."
-      priority: 10
-```
-
-### Markdown example
-
-```yaml
-action:
-  - action: gotify_mu.send
-    data:
+      channel: notify.greenhouse
       title: "Greenhouse"
       message: "**Temperature is above 100°F.**"
       priority: 8
       markdown: true
 ```
 
+### Compatibility behavior
+
+Older automations that specify `entry_id` remain supported. If the resolved entry exposes exactly one Channel, the Channel can still be inferred.
+
+If an entry exposes multiple Channels and no Channel target is supplied, the action fails with a clear request to choose a Channel rather than guessing where to send the message.
+
 ### Advanced extras
 
 Caller-supplied extras are preserved.
 
-The integration also adds its origin marker:
+The integration adds its origin marker:
 
 ```json
 {
   "homeassistant::gotify_mu": {
     "entry_id": "...",
+    "channel_id": 7,
     "source": "monita-ha"
   }
 }
 ```
 
-If the caller already supplied other extras, they are merged rather than replaced.
-
-When Markdown is enabled, the normal Gotify `client::display` Markdown extra is also added unless the caller already provided one.
+That marker supports loop prevention while preserving the caller's existing extras.
 
 ---
 
@@ -361,6 +352,14 @@ Supported image types:
 - GIF
 - WebP
 
+### Server-centric image compatibility
+
+Text and Markdown Push Message publishing is fully server-centric and uses one client token plus the selected Channel ID.
+
+The existing staged-image upload contract is still application-token scoped. Therefore, legacy Channel entries with an application token retain image delivery, while a pure server-centric entry fails clearly if an image is requested for a Channel that does not have that legacy application-token context. The integration never silently drops a requested image.
+
+This keeps the multi-Channel rollout safe while the corresponding Monita server-side per-Channel staged-upload contract is added.
+
 ### Failure behavior
 
 Image requests fail closed.
@@ -425,24 +424,23 @@ The current Home Assistant service UI exposes one primary image source, but the 
 
 ## 6. Realtime inbound Channel messages
 
-Realtime inbound messages are optional.
-
-They require a Monita **client token** belonging to a user who can access the configured Channel.
+Realtime inbound messages use the same Monita client token as the server-centric connection.
 
 Enable or disable inbound streaming from:
 
 **Settings → Devices & services → Monita → Configure → Notifications and inbound messages**
 
-When enabled, the integration maintains a Monita WebSocket connection.
+When enabled, the integration maintains **one WebSocket connection per Monita server** and accepts messages only from the Channels currently selected in **Manage Channels**.
 
 ### Messages event entity
 
-The integration creates a Home Assistant event entity named **Messages**.
+The integration creates one Home Assistant event entity named **Messages** for the server connection.
 
-Each incoming Monita message exposes:
+Each incoming message from a selected Monita Channel exposes:
 
 - `message_id`
 - `channel_id`
+- `channel_name`
 - `title`
 - `message`
 - `priority`
@@ -451,19 +449,19 @@ Each incoming Monita message exposes:
 - `sender_name`
 - `extras`
 
-Use this entity as the source for explicit Home Assistant automations.
+Use the Channel ID/name in Home Assistant automation conditions when different selected Channels should trigger different behavior.
 
 Inbound message text is never automatically interpreted as a Home Assistant command.
 
 ### Loop prevention
 
-Messages sent by the same Home Assistant config entry contain the integration origin marker.
+Messages pushed by the same Home Assistant config entry contain the integration origin marker, including the destination Channel ID.
 
-The same entry ignores those messages on its inbound stream so a simple send → receive automation does not immediately trigger itself.
+The same server entry ignores those loopback messages on its inbound stream.
 
 ### Inbound connection sensor
 
-When inbound messages are enabled, the integration creates an **Inbound connection** connectivity binary sensor.
+When inbound messages are enabled, the integration creates an **Inbound connection** connectivity binary sensor for the Monita server.
 
 It exposes:
 
@@ -471,9 +469,7 @@ It exposes:
 - reconnect count
 - most recent stream error
 
-The WebSocket automatically reconnects using bounded backoff after ordinary connection failures.
-
-Authentication failures trigger Home Assistant reauthentication instead of endlessly reconnecting with invalid credentials.
+The WebSocket automatically reconnects using bounded backoff after ordinary connection failures. Client-token authentication failures trigger Home Assistant reauthentication rather than endlessly reconnecting.
 
 ---
 
@@ -609,10 +605,11 @@ Generate a new one-time pairing code in Monita and pair again.
 
 Repairing native pairing does not delete or replace:
 
-- the application token
-- the standard notify entity
-- `gotify_mu.send`
-- the optional client token
+- the Monita server/client credential
+- selected Channels
+- Channel notify entities
+- the **Push Message** action (`gotify_mu.send`)
+- legacy application-token credentials on upgraded per-Channel entries
 - the normal Monita config entry
 
 The Repairs issue clears automatically after successful recovery.
@@ -645,35 +642,27 @@ Use this only when the Monita side will be cleaned up separately.
 
 ## 11. Reauthentication
 
-If Monita rejects a stored application token or client token, Home Assistant starts a reauthentication flow.
+For a new server-centric entry, reauthentication replaces the Monita **client token** and re-queries the server for accessible Channels.
 
-Reauthentication can:
+Home Assistant preserves selected Channel IDs that are still accessible. If none of the previous selections remain accessible, the integration falls back to the Channels returned by the newly authenticated account so the entry is not left unusable.
 
-- replace the application token
-- replace the client token
-- remove the client token
-
-The integration verifies that replacement credentials still correspond to the configured Channel.
-
-If the client token is removed, inbound streaming is automatically disabled.
+Legacy per-Channel entries retain their application-token reauthentication path.
 
 ---
 
 ## 12. Reconfiguration
 
-Use **Reconfigure** to change connection/display settings without deleting the integration.
+Use **Reconfigure** to change connection settings without deleting the integration.
 
-Supported changes:
+For server-centric entries, supported changes are:
 
 - Monita server URL
-- Channel display name
 - TLS certificate verification
 - replacement client token
-- removal of the client token
 
-The integration validates the new settings before saving them.
+Channel selection is managed separately through **Configure → Manage Channels** so changing Channels does not require touching credentials.
 
-The application token is replaced through reauthentication rather than ordinary reconfiguration.
+Legacy per-Channel entries retain their earlier application-token/client-token reconfiguration behavior.
 
 ---
 
@@ -681,27 +670,33 @@ The application token is replaced through reauthentication rather than ordinary 
 
 Open:
 
-**Settings → Devices & services → Monita → Configure → Notifications and inbound messages**
+**Settings → Devices & services → Monita → Configure**
 
-Available options:
+The options menu exposes:
 
-### Default priority
+### Manage Channels
 
-Controls the priority used by the standard notify entity.
+Queries Monita live and displays every Channel the configured account can currently access.
 
-Range:
+Use this whenever:
 
-- 0–10
+- a new Channel was added to Monita;
+- a Channel was deleted;
+- a user's Channel role changed;
+- you want Home Assistant to stop exposing a Channel;
+- you want to add another Channel without creating another integration entry.
 
-This does not prevent `gotify_mu.send` from supplying a different priority for an individual message.
+Saving the list reloads the integration. Push-capable selected Channels get notification entities; selected read-only Channels remain available for inbound messages.
 
-### Enable inbound messages
+### Notifications and inbound messages
 
-Available when a client token is configured.
+**Default priority** controls the priority used by Channel notification entities. Range: 0–10; default: 5.
 
-Controls whether Home Assistant maintains the realtime WebSocket and exposes inbound Channel messages.
+**Enable inbound messages** controls the single server WebSocket used to expose messages from the selected Channels.
 
-Turning it off leaves outbound notifications working normally.
+### Native Home Assistant pairing
+
+Manages the optional paired event bridge independently from normal Channel publishing and inbound messages.
 
 ---
 
@@ -721,8 +716,10 @@ The setting applies to the integration's Monita HTTPS traffic and to `image_url`
 
 Home Assistant config-entry diagnostics include useful non-secret operational information such as:
 
-- Channel ID
-- Channel name
+- selected Channel IDs
+- selected Channel names
+- effective Channel roles
+- whether each selected Channel is push-capable
 - inbound enabled state
 - stream connection status
 - reconnect count
@@ -737,8 +734,8 @@ Home Assistant config-entry diagnostics include useful non-secret operational in
 
 Diagnostics redact:
 
-- application token
 - client token
+- legacy application token
 - native shared secret
 - private native webhook ID
 - private native webhook URL
@@ -767,32 +764,46 @@ The integration is intentionally conservative.
 
 ## 17. Compatibility
 
-### Text notifications
+### Server-centric text and Markdown publishing
 
-Text publishing remains compatible with the standard Gotify API:
+New installations publish through Monita's Gotify-compatible message endpoint using the server client token and the destination Channel ID:
 
 ```text
 POST /message
-X-Gotify-Key: <application-token>
+X-Gotify-Key: <client-token>
 ```
 
-This preserves outbound compatibility with Gotify-style servers.
+Example payload:
 
-### Monita identity and Gotify compatibility
+```json
+{
+  "appid": 8,
+  "message": "Greenhouse temperature is high.",
+  "priority": 8
+}
+```
 
-Current Monita builds provide exact application/Channel identity.
+Monita applies the authenticated account's Channel role before accepting the message. Home Assistant exposes push-capable notification entities only for Channels the account can post to.
 
-Older Gotify-compatible servers can use the legacy Gotify-compatible validation fallback.
+### Legacy application-token publishing
+
+Existing per-Channel entries continue to use the older application-token route without requiring users to rebuild their integrations or automations.
+
+This is also the current path used by staged image uploads.
+
+### Gotify compatibility
+
+The underlying message endpoint and headers remain Gotify-compatible where possible. Monita-specific multi-user Channel roles, selected-Channel management, and native bridge capabilities are additive.
 
 ### Image notifications
 
-Image notifications require a Monita server version that supports staged application attachments at:
+The current staged attachment contract is application-token scoped:
 
 ```text
 POST /application/current/attachment
 ```
 
-Text-only notifications continue working even when the connected server does not provide the staged attachment extension.
+Legacy application-token Channel entries retain image delivery. Pure server-centric entries fail explicitly for image requests until the Monita server exposes a per-Channel staged-upload contract for the server credential. Requested images are never silently omitted.
 
 ### Native bridge
 
@@ -802,44 +813,55 @@ Native pairing and bidirectional event forwarding are Monita-specific features a
 
 ## 18. Common workflows
 
-### Simple Home Assistant status alert
+### Simple Channel notify entity
 
 ```yaml
 action:
   - action: notify.send_message
     target:
-      entity_id: notify.gotify_mu_notifications
+      entity_id: notify.security
     data:
-      title: "Home Assistant"
-      message: "Restart completed."
+      title: "Security"
+      message: "Front door opened."
 ```
 
-### High-priority server alert
+### Push Message to a selected Channel
 
 ```yaml
 action:
   - action: gotify_mu.send
     data:
+      channel: notify.server_alerts
       title: "Server Alert"
       message: "Storage array is degraded."
       priority: 10
 ```
 
-### Markdown system report
+### Markdown Push Message
 
 ```yaml
 action:
   - action: gotify_mu.send
     data:
+      channel: notify.greenhouse
       title: "Daily Status"
       message: |
-        **Backup:** Complete
-        **UPS:** Online
-        **Internet:** Online
+        **Temperature:** 87°F
+        **Humidity:** 62%
       markdown: true
 ```
 
-### Doorbell snapshot
+### Manage Channels after Monita grows
+
+Open:
+
+**Settings → Devices & services → Monita → Configure → Manage Channels**
+
+The list is refreshed from the server each time. Select the new Channel and save; there is no need to add another Monita integration entry.
+
+### Doorbell snapshot on a legacy image-capable entry
+
+Until the server-centric staged-upload contract is available, existing application-token Channel entries continue to support:
 
 ```yaml
 action:
@@ -851,50 +873,23 @@ action:
       image_entity: camera.front_door
 ```
 
-### Generated image entity
-
-```yaml
-action:
-  - action: gotify_mu.send
-    data:
-      title: "Camera Snapshot"
-      message: "Latest security snapshot."
-      image_entity: image.security_snapshot
-```
-
-### Remote HTTP image
-
-```yaml
-action:
-  - action: gotify_mu.send
-    data:
-      title: "Weather Radar"
-      message: "Current radar image."
-      image_url: "https://example.com/radar.png"
-```
-
-### Specific Monita entry
-
-Use the action editor's **Monita entry** selector to target a particular Channel when several entries exist.
-
-The generated YAML contains that config entry's `entry_id`.
-
 ---
 
 ## 19. Feature availability summary
 
-| Feature | Application token | Client token | Native pairing |
+| Feature | New server connection | Legacy per-Channel entry | Native pairing |
 | --- | :---: | :---: | :---: |
-| Standard notify entity | Required | No | No |
-| `gotify_mu.send` | Required | No | No |
-| Priority/Markdown/extras | Required | No | No |
-| Camera/image notifications | Required | No | No |
-| Realtime inbound Channel messages | Required | Required | No |
-| Messages event entity | Required | Required | No |
-| Inbound connection sensor | Required | Required | No |
-| Native Monita → HA events | Required for normal publishing | No | Required |
-| Native HA → Monita events | Required for normal publishing | No | Required |
-| Native bridge health sensor | Required for normal publishing | No | Required |
-| Native pairing Repairs support | Required for normal publishing | No | Required |
+| Discover accessible Channels | Yes | If client token present | No |
+| Select/manage multiple Channels | Yes | Yes after v3 migration when client token is present | No |
+| Notify entity per push-capable Channel | Yes | Yes | No |
+| **Push Message** text/Markdown | Yes | Yes | No |
+| Priority/Markdown/extras | Yes | Yes | No |
+| Camera/image notifications | Pending server per-Channel staging | Yes | No |
+| Realtime inbound selected Channels | Yes | With client token | No |
+| Messages event entity | Yes | With client token | No |
+| Inbound connection sensor | Yes | With client token | No |
+| Native Monita → HA events | Independent | Independent | Required |
+| Native HA → Monita events | Independent | Independent | Required |
+| Native bridge health/Repairs | Independent | Independent | Required |
 
-The application token remains part of the normal integration even when native pairing is enabled; native pairing is additive rather than a replacement authentication model.
+New installs use one client-token server connection for Channel discovery, publishing, and inbound messages. Legacy application-token entries remain supported for backward compatibility and current staged-image delivery.

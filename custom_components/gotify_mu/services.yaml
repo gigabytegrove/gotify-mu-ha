@@ -1,13 +1,14 @@
 send:
-  name: Send notification
-  description: Send a text, Markdown, or hosted image notification through a configured Monita channel.
+  name: Push Message
+  description: Push a text, Markdown, or hosted image message to a selected Monita Channel.
   fields:
-    entry_id:
-      name: Monita entry
-      description: The configured Monita channel. If omitted, the first loaded entry is used.
+    channel:
+      name: Channel
+      description: Choose the Monita notification entity for the Channel that should receive this message.
       required: false
       selector:
-        config_entry:
+        entity:
+          domain: notify
           integration: gotify_mu
     title:
       name: Title
@@ -32,14 +33,14 @@ send:
           mode: slider
     markdown:
       name: Markdown
-      description: Render the message as Markdown on clients that support Gotify message extras.
+      description: Render the message as Markdown on clients that support Gotify-compatible message extras.
       required: false
       default: false
       selector:
         boolean:
     image_entity:
       name: Image entity
-      description: Preferred image workflow. Capture the current frame/image from a Home Assistant camera or image entity, then upload the actual bytes to Monita so remote and mobile clients do not need access to Home Assistant or the camera.
+      description: Capture a current Home Assistant camera/image and upload the bytes to Monita. Image staging remains available on Channel application-token connections.
       required: false
       selector:
         entity:
@@ -48,7 +49,7 @@ send:
             - image
     image_url:
       name: Image URL
-      description: Advanced image workflow. Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant (maximum 10 MiB), then upload the actual bytes to Monita. Mutually exclusive with Image entity; the source URL is not forwarded to clients.
+      description: Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant (maximum 10 MiB), then upload the bytes to Monita. Mutually exclusive with Image entity.
       required: false
       selector:
         text:

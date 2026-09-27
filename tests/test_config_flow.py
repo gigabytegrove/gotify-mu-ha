@@ -1,32 +1,42 @@
-"""Tests for the Gotify MU config flow."""
+"""Tests for Monita server-centric configuration."""
 
+import pytest
 from homeassistant import config_entries
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.gotify_mu.config_flow import GotifyMUOptionsFlow
 from custom_components.gotify_mu.const import (
-    CONF_APP_TOKEN,
-    CONF_CHANNEL_ID,
-    CONF_CHANNEL_NAME,
+    CONF_CHANNEL_IDS,
     CONF_CLIENT_TOKEN,
+    CONF_DEFAULT_PRIORITY,
     CONF_INBOUND_ENABLED,
     CONF_SERVER_URL,
     CONF_VERIFY_SSL,
+    DEFAULT_PRIORITY,
     DOMAIN,
 )
 
-SERVER = "http://gotify-mu.local:8080"
-APP_TOKEN = "gtfya.test-private-token"
+SERVER = "http://monita.local:8080"
 CLIENT_TOKEN = "gtfyc.test-private-token"
 
 
-def _app_payload(channel_id: int = 7, name: str = "Home Assistant") -> dict:
+def _channel_payload(
+    channel_id: int = 7,
+    name: str = "Security",
+    *,
+    role: str = "owner",
+    allow_member_post: bool = False,
+) -> dict:
     return {
         "id": channel_id,
         "name": name,
-        "description": "Automation messages",
-        "allowMemberPost": True,
-        "autoAssign": True,
+        "description": f"{name} messages",
+        "allowMemberPost": allow_member_post,
+        "autoAssign": False,
+        "channelType": "notification",
+        "receiveNotifications": True,
+        "role": role,
         "image": "static/defaultapp.png",
     }
 
@@ -37,10 +47,27 @@ async def _start_user_flow(hass):
     )
 
 
-async def test_current_mu_server_identifies_channel_automatically(hass, aioclient_mock):
-    """Current MU servers identify the app-token Channel without a test message."""
+def _mock_server(aioclient_mock, channels: list[dict]) -> None:
     aioclient_mock.get(f"{SERVER}/health", json={"health": "green"})
-    aioclient_mock.get(f"{SERVER}/application/current", json=_app_payload())
+    aioclient_mock.get(
+        f"{SERVER}/current/user",
+        json={"id": 1, "name": "homeassistant"},
+    )
+    aioclient_mock.get(f"{SERVER}/application", json=channels)
+
+
+async def test_server_setup_discovers_and_selects_multiple_channels(
+    hass, aioclient_mock
+):
+    """One Monita server entry exposes multiple selected Channels."""
+    _mock_server(
+        aioclient_mock,
+        [
+            _channel_payload(7, "Security", role="owner"),
+            _channel_payload(8, "Greenhouse", role="publisher"),
+            _channel_payload(9, "Archive", role="readonly"),
+        ],
+    )
 
     result = await _start_user_flow(hass)
     assert result["type"] is FlowResultType.FORM
@@ -50,122 +77,42 @@ async def test_current_mu_server_identifies_channel_automatically(hass, aioclien
         result["flow_id"],
         {
             CONF_SERVER_URL: SERVER,
-            CONF_APP_TOKEN: APP_TOKEN,
-            CONF_CLIENT_TOKEN: "",
-            CONF_VERIFY_SSL: True,
-        },
-    )
-
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Home Assistant"
-    assert result["result"].unique_id == f"{SERVER}|channel:7"
-    assert result["data"][CONF_CHANNEL_ID] == 7
-    assert result["data"][CONF_CHANNEL_NAME] == "Home Assistant"
-    assert CONF_CLIENT_TOKEN not in result["data"]
-    assert result["options"][CONF_INBOUND_ENABLED] is False
-
-
-async def test_legacy_server_outbound_only_uses_safe_validation(hass, aioclient_mock):
-    """Legacy Gotify-compatible servers validate app tokens without a real message."""
-    aioclient_mock.get(f"{SERVER}/health", json={"health": "green"})
-    aioclient_mock.get(f"{SERVER}/application/current", status=404)
-    aioclient_mock.post(f"{SERVER}/message", status=400)
-
-    result = await _start_user_flow(hass)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            CONF_SERVER_URL: SERVER,
-            CONF_APP_TOKEN: APP_TOKEN,
-            CONF_CLIENT_TOKEN: "",
-            CONF_VERIFY_SSL: True,
-        },
-    )
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "channel"
-
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_CHANNEL_NAME: "Home Assistant"}
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Home Assistant"
-    assert result["data"][CONF_SERVER_URL] == SERVER
-    assert CONF_CLIENT_TOKEN not in result["data"]
-    assert APP_TOKEN not in result["result"].unique_id
-
-
-async def test_legacy_server_client_token_enables_channel_discovery(
-    hass, aioclient_mock
-):
-    """A client token enables Channel discovery on older MU servers."""
-    aioclient_mock.get(f"{SERVER}/health", json={"health": "green"})
-    aioclient_mock.get(f"{SERVER}/application/current", status=404)
-    aioclient_mock.post(f"{SERVER}/message", status=400)
-    aioclient_mock.get(f"{SERVER}/current/user", json={"id": 1, "name": "admin"})
-    aioclient_mock.get(f"{SERVER}/application", json=[_app_payload()])
-
-    result = await _start_user_flow(hass)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            CONF_SERVER_URL: SERVER,
-            CONF_APP_TOKEN: APP_TOKEN,
             CONF_CLIENT_TOKEN: CLIENT_TOKEN,
             CONF_VERIFY_SSL: True,
         },
     )
     assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "channel"
+    assert result["step_id"] == "channels"
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_CHANNEL_ID: "7"}
+        result["flow_id"],
+        {CONF_CHANNEL_IDS: ["7", "8", "9"]},
     )
+
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["result"].unique_id == f"{SERVER}|channel:7"
-    assert result["data"][CONF_CLIENT_TOKEN] == CLIENT_TOKEN
+    assert result["title"] == "Monita — monita.local:8080"
+    assert result["result"].unique_id == f"{SERVER}|server"
+    assert result["data"] == {
+        CONF_SERVER_URL: SERVER,
+        CONF_CLIENT_TOKEN: CLIENT_TOKEN,
+        CONF_VERIFY_SSL: True,
+    }
+    assert result["options"][CONF_CHANNEL_IDS] == [7, 8, 9]
+    assert result["options"][CONF_DEFAULT_PRIORITY] == DEFAULT_PRIORITY
     assert result["options"][CONF_INBOUND_ENABLED] is True
 
 
-async def test_current_server_client_token_must_access_app_channel(
-    hass, aioclient_mock
-):
-    """Reject a client token that cannot subscribe to the app-token Channel."""
+async def test_server_setup_rejects_invalid_client_token(hass, aioclient_mock):
+    """Server setup validates the client credential before Channel selection."""
     aioclient_mock.get(f"{SERVER}/health", json={"health": "green"})
-    aioclient_mock.get(f"{SERVER}/application/current", json=_app_payload(channel_id=7))
-    aioclient_mock.get(f"{SERVER}/current/user", json={"id": 1, "name": "admin"})
-    aioclient_mock.get(
-        f"{SERVER}/application",
-        json=[_app_payload(channel_id=8, name="Different Channel")],
-    )
+    aioclient_mock.get(f"{SERVER}/current/user", status=401)
 
     result = await _start_user_flow(hass)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {
             CONF_SERVER_URL: SERVER,
-            CONF_APP_TOKEN: APP_TOKEN,
             CONF_CLIENT_TOKEN: CLIENT_TOKEN,
-            CONF_VERIFY_SSL: True,
-        },
-    )
-
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "user"
-    assert result["errors"] == {"base": "channel_not_accessible"}
-
-
-async def test_invalid_application_token(hass, aioclient_mock):
-    """Invalid application tokens are rejected during setup."""
-    aioclient_mock.get(f"{SERVER}/health", json={"health": "green"})
-    aioclient_mock.get(f"{SERVER}/application/current", status=401)
-
-    result = await _start_user_flow(hass)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            CONF_SERVER_URL: SERVER,
-            CONF_APP_TOKEN: APP_TOKEN,
-            CONF_CLIENT_TOKEN: "",
             CONF_VERIFY_SSL: True,
         },
     )
@@ -175,6 +122,93 @@ async def test_invalid_application_token(hass, aioclient_mock):
     assert result["errors"] == {"base": "invalid_auth"}
 
 
+async def test_server_setup_requires_at_least_one_accessible_channel(
+    hass, aioclient_mock
+):
+    """An account with no accessible Channels cannot create an unusable entry."""
+    _mock_server(aioclient_mock, [])
+
+    result = await _start_user_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_SERVER_URL: SERVER,
+            CONF_CLIENT_TOKEN: CLIENT_TOKEN,
+            CONF_VERIFY_SSL: True,
+        },
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+    assert result["errors"] == {"base": "no_channels"}
+
+
+async def test_channel_selection_rejects_unknown_channel(hass, aioclient_mock):
+    """A stale/unknown Channel ID cannot be saved."""
+    _mock_server(aioclient_mock, [_channel_payload(7, "Security")])
+
+    result = await _start_user_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_SERVER_URL: SERVER,
+            CONF_CLIENT_TOKEN: CLIENT_TOKEN,
+            CONF_VERIFY_SSL: True,
+        },
+    )
+    with pytest.raises(InvalidData):
+        await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_CHANNEL_IDS: ["99"]},
+        )
+
+
+async def test_manage_channels_refreshes_live_server_list(hass, aioclient_mock):
+    """Options UI can rescan Monita and change the exposed Channel set."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Monita — monita.local:8080",
+        unique_id=f"{SERVER}|server",
+        data={
+            CONF_SERVER_URL: SERVER,
+            CONF_CLIENT_TOKEN: CLIENT_TOKEN,
+            CONF_VERIFY_SSL: True,
+        },
+        options={
+            CONF_CHANNEL_IDS: [7],
+            CONF_DEFAULT_PRIORITY: DEFAULT_PRIORITY,
+            CONF_INBOUND_ENABLED: True,
+        },
+        version=3,
+    )
+    entry.add_to_hass(hass)
+    _mock_server(
+        aioclient_mock,
+        [
+            _channel_payload(7, "Security"),
+            _channel_payload(8, "Greenhouse", role="publisher"),
+        ],
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.MENU
+    assert "channels" in result["menu_options"]
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"next_step_id": "channels"},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "channels"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_CHANNEL_IDS: ["7", "8"]},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_CHANNEL_IDS] == [7, 8]
+
+
 def test_options_flow_uses_reload_helper():
-    """Options changes must reload the entry so inbound stream changes apply."""
+    """Channel/option changes reload the integration automatically."""
     assert issubclass(GotifyMUOptionsFlow, config_entries.OptionsFlowWithReload)

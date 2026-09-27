@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -34,6 +35,7 @@ from .api import (
 from .const import (
     CONF_APP_TOKEN,
     CONF_CHANNEL_ID,
+    CONF_CHANNEL_IDS,
     CONF_CHANNEL_NAME,
     CONF_CLIENT_TOKEN,
     CONF_DEFAULT_PRIORITY,
@@ -47,12 +49,11 @@ from .const import (
     CONF_SERVER_URL,
     CONF_VERIFY_SSL,
     DEFAULT_INBOUND_ENABLED,
-    DEFAULT_NAME,
     DEFAULT_PRIORITY,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
 )
-from .helpers import channel_unique_id, fallback_unique_id, normalize_server_url
+from .helpers import normalize_server_url, server_unique_id
 from .native import (
     GotifyMUNativePairingError,
     PendingNativeWebhook,
@@ -65,10 +66,31 @@ from .native import (
 from .repairs import async_delete_native_bridge_repair_issue
 
 
+def _channel_selector_options(channels: list[GotifyMUChannel]) -> list[dict[str, str]]:
+    """Build readable Channel choices for Home Assistant selectors."""
+    result: list[dict[str, str]] = []
+    for channel in channels:
+        role = channel.role or "member"
+        access = "can push" if channel.can_post else "read only"
+        result.append(
+            {
+                "value": str(channel.id),
+                "label": f"{channel.name} — {role}, {access}",
+            }
+        )
+    return result
+
+
+def _server_title(server_url: str) -> str:
+    """Return a friendly config-entry title for one Monita server."""
+    host = urlsplit(server_url).netloc or server_url
+    return f"Monita — {host}"
+
+
 class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Monita."""
 
-    VERSION = 2
+    VERSION = 3
     MINOR_VERSION = 0
 
     def __init__(self) -> None:
@@ -76,7 +98,27 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._pending: dict[str, Any] | None = None
         self._channels: list[GotifyMUChannel] = []
 
-    async def _async_validate(
+    async def _async_validate_server(
+        self,
+        *,
+        server_url: str,
+        client_token: str,
+        verify_ssl: bool,
+    ) -> tuple[GotifyMUClient, dict[str, Any], list[GotifyMUChannel]]:
+        """Validate one server credential and discover accessible Channels."""
+        client = GotifyMUClient(
+            async_get_clientsession(self.hass),
+            server_url,
+            "",
+            verify_ssl,
+            client_token,
+        )
+        await client.async_health()
+        user = await client.async_validate_client_token()
+        channels = await client.async_get_channels()
+        return client, user, channels
+
+    async def _async_validate_legacy(
         self,
         *,
         server_url: str,
@@ -84,7 +126,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         client_token: str | None,
         verify_ssl: bool,
     ) -> tuple[GotifyMUClient, GotifyMUChannel | None, list[GotifyMUChannel]]:
-        """Validate credentials and discover MU metadata when possible."""
+        """Validate a pre-v3 per-Channel entry without changing its credentials."""
         client = GotifyMUClient(
             async_get_clientsession(self.hass),
             server_url,
@@ -94,49 +136,33 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         await client.async_health()
         application = await client.async_validate_application_token()
-
         channels: list[GotifyMUChannel] = []
         if client_token:
             await client.async_validate_client_token()
             channels = await client.async_get_channels()
-
         return client, application, channels
-
-    @staticmethod
-    def _client_can_access_channel(
-        channel_id: int, channels: list[GotifyMUChannel]
-    ) -> bool:
-        """Return whether a client-token user can access a channel."""
-        return any(channel.id == channel_id for channel in channels)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle initial setup."""
+        """Connect Home Assistant to one Monita server."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             try:
                 server_url = normalize_server_url(user_input[CONF_SERVER_URL])
-                app_token = user_input[CONF_APP_TOKEN].strip()
-                client_token = user_input.get(CONF_CLIENT_TOKEN, "").strip() or None
+                client_token = user_input[CONF_CLIENT_TOKEN].strip()
                 verify_ssl = user_input[CONF_VERIFY_SSL]
-                if not app_token:
-                    raise GotifyMUAuthError("Application token is empty")
+                if not client_token:
+                    raise GotifyMUAuthError("Client token is empty")
 
-                _, application, channels = await self._async_validate(
+                _, _, channels = await self._async_validate_server(
                     server_url=server_url,
-                    app_token=app_token,
                     client_token=client_token,
                     verify_ssl=verify_ssl,
                 )
-
-                if (
-                    application is not None
-                    and client_token
-                    and not self._client_can_access_channel(application.id, channels)
-                ):
-                    errors["base"] = "channel_not_accessible"
+                if not channels:
+                    errors["base"] = "no_channels"
             except ValueError:
                 errors["base"] = "invalid_url"
             except GotifyMUAuthError:
@@ -147,43 +173,22 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 if not errors:
-                    data: dict[str, Any] = {
+                    await self.async_set_unique_id(server_unique_id(server_url))
+                    self._abort_if_unique_id_configured()
+                    self._pending = {
                         CONF_SERVER_URL: server_url,
-                        CONF_APP_TOKEN: app_token,
+                        CONF_CLIENT_TOKEN: client_token,
                         CONF_VERIFY_SSL: verify_ssl,
                     }
-                    if client_token:
-                        data[CONF_CLIENT_TOKEN] = client_token
-
-                    if application is not None:
-                        data[CONF_CHANNEL_ID] = application.id
-                        data[CONF_CHANNEL_NAME] = application.name
-                        await self.async_set_unique_id(
-                            channel_unique_id(server_url, application.id)
-                        )
-                        self._abort_if_unique_id_configured()
-                        return self.async_create_entry(
-                            title=application.name,
-                            data=data,
-                            options={
-                                CONF_DEFAULT_PRIORITY: DEFAULT_PRIORITY,
-                                CONF_INBOUND_ENABLED: bool(client_token),
-                            },
-                        )
-
-                    self._pending = data
                     self._channels = channels
-                    return await self.async_step_channel()
+                    return await self.async_step_channels()
 
         schema = vol.Schema(
             {
                 vol.Required(CONF_SERVER_URL): TextSelector(
                     TextSelectorConfig(type=TextSelectorType.URL)
                 ),
-                vol.Required(CONF_APP_TOKEN): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
-                vol.Optional(CONF_CLIENT_TOKEN, default=""): TextSelector(
+                vol.Required(CONF_CLIENT_TOKEN): TextSelector(
                     TextSelectorConfig(type=TextSelectorType.PASSWORD)
                 ),
                 vol.Required(
@@ -193,73 +198,53 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    async def async_step_channel(
+    async def async_step_channels(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Select or name the channel on servers without app identity API."""
+        """Choose which server Channels Home Assistant may expose."""
         if self._pending is None:
             return self.async_abort(reason="setup_state_lost")
 
+        errors: dict[str, str] = {}
+        available = {channel.id for channel in self._channels}
+
         if user_input is not None:
-            if self._channels:
-                channel_id = int(user_input[CONF_CHANNEL_ID])
-                selected = next(
-                    (channel for channel in self._channels if channel.id == channel_id),
-                    None,
-                )
-                if selected is None:
-                    return self.async_abort(reason="channel_not_found")
-                channel_name = selected.name
-                unique_id = channel_unique_id(
-                    self._pending[CONF_SERVER_URL], selected.id
-                )
+            selected = [int(value) for value in user_input.get(CONF_CHANNEL_IDS, [])]
+            selected = list(dict.fromkeys(selected))
+            if not selected:
+                errors["base"] = "select_channel"
+            elif any(channel_id not in available for channel_id in selected):
+                errors["base"] = "channel_not_found"
             else:
-                channel_id = None
-                channel_name = user_input[CONF_CHANNEL_NAME].strip() or DEFAULT_NAME
-                unique_id = fallback_unique_id(
-                    self._pending[CONF_SERVER_URL], self._pending[CONF_APP_TOKEN]
+                return self.async_create_entry(
+                    title=_server_title(self._pending[CONF_SERVER_URL]),
+                    data=dict(self._pending),
+                    options={
+                        CONF_CHANNEL_IDS: selected,
+                        CONF_DEFAULT_PRIORITY: DEFAULT_PRIORITY,
+                        CONF_INBOUND_ENABLED: True,
+                    },
                 )
 
-            await self.async_set_unique_id(unique_id)
-            self._abort_if_unique_id_configured()
-
-            data = dict(self._pending)
-            data[CONF_CHANNEL_NAME] = channel_name
-            if channel_id is not None:
-                data[CONF_CHANNEL_ID] = channel_id
-
-            return self.async_create_entry(
-                title=channel_name,
-                data=data,
-                options={
-                    CONF_DEFAULT_PRIORITY: DEFAULT_PRIORITY,
-                    CONF_INBOUND_ENABLED: bool(data.get(CONF_CLIENT_TOKEN)),
-                },
-            )
-
-        if self._channels:
-            options = [
-                {"value": str(channel.id), "label": channel.name}
-                for channel in self._channels
-            ]
-            schema = vol.Schema(
-                {
-                    vol.Required(CONF_CHANNEL_ID): SelectSelector(
-                        SelectSelectorConfig(
-                            options=options,
-                            mode=SelectSelectorMode.DROPDOWN,
-                        )
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_CHANNEL_IDS,
+                    default=[],
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=_channel_selector_options(self._channels),
+                        multiple=True,
+                        mode=SelectSelectorMode.DROPDOWN,
                     )
-                }
-            )
-        else:
-            schema = vol.Schema(
-                {
-                    vol.Required(CONF_CHANNEL_NAME, default=DEFAULT_NAME): TextSelector()
-                }
-            )
-
-        return self.async_show_form(step_id="channel", data_schema=schema)
+                )
+            }
+        )
+        return self.async_show_form(
+            step_id="channels",
+            data_schema=schema,
+            errors=errors,
+        )
 
     async def async_step_reauth(
         self, entry_data: dict[str, Any]
@@ -270,11 +255,59 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Reauthenticate an existing entry."""
+        """Reauthenticate a server-centric or legacy entry."""
         errors: dict[str, str] = {}
         entry = self._get_reauth_entry()
-        has_client_token = bool(entry.data.get(CONF_CLIENT_TOKEN))
+        server_mode = not bool(entry.data.get(CONF_APP_TOKEN))
 
+        if server_mode:
+            if user_input is not None:
+                client_token = user_input[CONF_CLIENT_TOKEN].strip()
+                try:
+                    _, _, channels = await self._async_validate_server(
+                        server_url=entry.data[CONF_SERVER_URL],
+                        client_token=client_token,
+                        verify_ssl=entry.data.get(CONF_VERIFY_SSL, True),
+                    )
+                except GotifyMUAuthError:
+                    errors["base"] = "invalid_auth"
+                except GotifyMURateLimitError:
+                    errors["base"] = "rate_limited"
+                except (GotifyMUConnectionError, GotifyMUError):
+                    errors["base"] = "cannot_connect"
+                else:
+                    data = dict(entry.data)
+                    data[CONF_CLIENT_TOKEN] = client_token
+                    options = dict(entry.options)
+                    available = {channel.id for channel in channels}
+                    selected = [
+                        int(value)
+                        for value in options.get(CONF_CHANNEL_IDS, [])
+                        if int(value) in available
+                    ]
+                    if not selected:
+                        errors["base"] = "channel_not_accessible"
+                    else:
+                        options[CONF_CHANNEL_IDS] = selected
+                        return self.async_update_reload_and_abort(
+                            entry,
+                            data=data,
+                            options=options,
+                        )
+
+            return self.async_show_form(
+                step_id="reauth_confirm",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_CLIENT_TOKEN): TextSelector(
+                            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                        )
+                    }
+                ),
+                errors=errors,
+            )
+
+        has_client_token = bool(entry.data.get(CONF_CLIENT_TOKEN))
         if user_input is not None:
             app_token = user_input[CONF_APP_TOKEN].strip()
             replacement_client_token = user_input.get(CONF_CLIENT_TOKEN, "").strip()
@@ -286,9 +319,8 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if remove_client_token
                 else replacement_client_token or entry.data.get(CONF_CLIENT_TOKEN)
             )
-
             try:
-                _, application, channels = await self._async_validate(
+                _, application, channels = await self._async_validate_legacy(
                     server_url=entry.data[CONF_SERVER_URL],
                     app_token=app_token,
                     client_token=client_token,
@@ -304,8 +336,9 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 elif (
                     configured_channel_id is not None
                     and client_token
-                    and not self._client_can_access_channel(
-                        configured_channel_id, channels
+                    and not any(
+                        channel.id == int(configured_channel_id)
+                        for channel in channels
                     )
                 ):
                     errors["base"] = "channel_not_accessible"
@@ -317,9 +350,6 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 if not errors:
-                    await self.async_set_unique_id(entry.unique_id)
-                    self._abort_if_unique_id_mismatch()
-
                     data = dict(entry.data)
                     data[CONF_APP_TOKEN] = app_token
                     if client_token:
@@ -333,6 +363,8 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     options = dict(entry.options)
                     if not client_token:
                         options[CONF_INBOUND_ENABLED] = False
+                    elif CONF_CHANNEL_IDS not in options and data.get(CONF_CHANNEL_ID):
+                        options[CONF_CHANNEL_IDS] = [int(data[CONF_CHANNEL_ID])]
 
                     return self.async_update_reload_and_abort(
                         entry,
@@ -352,7 +384,6 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             schema_dict[
                 vol.Optional(CONF_REMOVE_CLIENT_TOKEN, default=False)
             ] = BooleanSelector()
-
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema(schema_dict),
@@ -362,11 +393,79 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Reconfigure network settings, display name, and client token."""
+        """Reconfigure server network settings and credentials."""
         errors: dict[str, str] = {}
         entry = self._get_reconfigure_entry()
-        has_client_token = bool(entry.data.get(CONF_CLIENT_TOKEN))
+        server_mode = not bool(entry.data.get(CONF_APP_TOKEN))
 
+        if server_mode:
+            if user_input is not None:
+                replacement = user_input.get(CONF_CLIENT_TOKEN, "").strip()
+                client_token = replacement or entry.data[CONF_CLIENT_TOKEN]
+                try:
+                    server_url = normalize_server_url(user_input[CONF_SERVER_URL])
+                    _, _, channels = await self._async_validate_server(
+                        server_url=server_url,
+                        client_token=client_token,
+                        verify_ssl=user_input[CONF_VERIFY_SSL],
+                    )
+                except ValueError:
+                    errors["base"] = "invalid_url"
+                except GotifyMUAuthError:
+                    errors["base"] = "invalid_auth"
+                except GotifyMURateLimitError:
+                    errors["base"] = "rate_limited"
+                except (GotifyMUConnectionError, GotifyMUError):
+                    errors["base"] = "cannot_connect"
+                else:
+                    data = dict(entry.data)
+                    data.update(
+                        {
+                            CONF_SERVER_URL: server_url,
+                            CONF_CLIENT_TOKEN: client_token,
+                            CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
+                        }
+                    )
+                    options = dict(entry.options)
+                    available = {channel.id for channel in channels}
+                    selected = [
+                        int(value)
+                        for value in options.get(CONF_CHANNEL_IDS, [])
+                        if int(value) in available
+                    ]
+                    if not selected:
+                        errors["base"] = "channel_not_accessible"
+                    else:
+                        options[CONF_CHANNEL_IDS] = selected
+                        return self.async_update_reload_and_abort(
+                            entry,
+                            title=_server_title(server_url),
+                            data=data,
+                            options=options,
+                        )
+
+            return self.async_show_form(
+                step_id="reconfigure",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            CONF_SERVER_URL, default=entry.data[CONF_SERVER_URL]
+                        ): TextSelector(TextSelectorConfig(type=TextSelectorType.URL)),
+                        vol.Optional(CONF_CLIENT_TOKEN, default=""): TextSelector(
+                            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                        ),
+                        vol.Required(
+                            CONF_VERIFY_SSL,
+                            default=entry.data.get(
+                                CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+                            ),
+                        ): BooleanSelector(),
+                    }
+                ),
+                errors=errors,
+            )
+
+        has_client_token = bool(entry.data.get(CONF_CLIENT_TOKEN))
         if user_input is not None:
             replacement_client_token = user_input.get(CONF_CLIENT_TOKEN, "").strip()
             remove_client_token = bool(
@@ -379,7 +478,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             try:
                 server_url = normalize_server_url(user_input[CONF_SERVER_URL])
-                _, application, channels = await self._async_validate(
+                _, application, channels = await self._async_validate_legacy(
                     server_url=server_url,
                     app_token=entry.data[CONF_APP_TOKEN],
                     client_token=client_token,
@@ -395,8 +494,9 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 elif (
                     configured_channel_id is not None
                     and client_token
-                    and not self._client_can_access_channel(
-                        configured_channel_id, channels
+                    and not any(
+                        channel.id == int(configured_channel_id)
+                        for channel in channels
                     )
                 ):
                     errors["base"] = "channel_not_accessible"
@@ -410,9 +510,6 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             else:
                 if not errors:
-                    await self.async_set_unique_id(entry.unique_id)
-                    self._abort_if_unique_id_mismatch()
-
                     channel_name = (
                         user_input[CONF_CHANNEL_NAME].strip()
                         or (application.name if application is not None else entry.title)
@@ -435,6 +532,8 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     options = dict(entry.options)
                     if not client_token:
                         options[CONF_INBOUND_ENABLED] = False
+                    elif CONF_CHANNEL_IDS not in options and data.get(CONF_CHANNEL_ID):
+                        options[CONF_CHANNEL_IDS] = [int(data[CONF_CHANNEL_ID])]
 
                     return self.async_update_reload_and_abort(
                         entry,
@@ -489,10 +588,87 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
             if native_pairing_is_configured(dict(self.config_entry.data))
             else "Not paired"
         )
+        menu = ["settings", "native_pairing"]
+        if self.config_entry.data.get(CONF_CLIENT_TOKEN):
+            menu.insert(0, "channels")
         return self.async_show_menu(
             step_id="init",
-            menu_options=["settings", "native_pairing"],
+            menu_options=menu,
             description_placeholders={"native_state": state},
+        )
+
+    async def async_step_channels(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Refresh the server and choose Channels exposed to Home Assistant."""
+        client_token = self.config_entry.data.get(CONF_CLIENT_TOKEN)
+        if not client_token:
+            return self.async_abort(reason="client_token_required")
+
+        errors: dict[str, str] = {}
+        channels: list[GotifyMUChannel] = []
+        try:
+            client = GotifyMUClient(
+                async_get_clientsession(self.hass),
+                self.config_entry.data[CONF_SERVER_URL],
+                self.config_entry.data.get(CONF_APP_TOKEN, ""),
+                self.config_entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+                client_token,
+            )
+            await client.async_health()
+            await client.async_validate_client_token()
+            channels = await client.async_get_channels()
+        except GotifyMUAuthError:
+            errors["base"] = "invalid_auth"
+        except GotifyMURateLimitError:
+            errors["base"] = "rate_limited"
+        except (GotifyMUConnectionError, GotifyMUError):
+            errors["base"] = "cannot_connect"
+
+        if user_input is not None and not errors:
+            available = {channel.id for channel in channels}
+            selected = [int(value) for value in user_input.get(CONF_CHANNEL_IDS, [])]
+            selected = list(dict.fromkeys(selected))
+            if not selected:
+                errors["base"] = "select_channel"
+            elif any(channel_id not in available for channel_id in selected):
+                errors["base"] = "channel_not_found"
+            else:
+                options = dict(self.config_entry.options)
+                options[CONF_CHANNEL_IDS] = selected
+                return self.async_create_entry(data=options)
+
+        current = [
+            str(value)
+            for value in self.config_entry.options.get(
+                CONF_CHANNEL_IDS,
+                (
+                    [self.config_entry.data[CONF_CHANNEL_ID]]
+                    if self.config_entry.data.get(CONF_CHANNEL_ID) is not None
+                    else []
+                ),
+            )
+        ]
+        if not current and channels:
+            current = [str(channel.id) for channel in channels]
+
+        return self.async_show_form(
+            step_id="channels",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_CHANNEL_IDS,
+                        default=current,
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=_channel_selector_options(channels),
+                            multiple=True,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                }
+            ),
+            errors=errors,
         )
 
     async def async_step_settings(
@@ -500,7 +676,9 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Manage existing notification and inbound stream options."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            options = dict(self.config_entry.options)
+            options.update(user_input)
+            return self.async_create_entry(data=options)
 
         schema_dict: dict[Any, Any] = {
             vol.Required(

@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.4.0 - 2026-09-27
+
+### Added
+
+- Server-centric setup: add one Monita server with a client token, query its accessible Channels, and select multiple Channels in one integration entry.
+- **Manage Channels** in the Home Assistant options UI. Reopening it queries Monita live so newly created or removed Channels can be reflected without adding another integration entry.
+- One Home Assistant notification entity per selected Channel that the configured Monita account is allowed to post to.
+- Selected read-only Channels remain eligible for inbound-message filtering without being exposed as push-capable notification entities.
+- **Push Message** as the user-facing Home Assistant action name for the compatibility-safe `gotify_mu.send` service.
+- Channel targeting in Push Message through a Monita notification-entity picker.
+- Channel name in inbound Home Assistant message-event data and selected-Channel details in diagnostics.
+
+### Changed
+
+- New installs use a Monita client token as the server credential instead of requiring one application token per Channel.
+- Text and Markdown publishing can use one client token plus Monita's `appid` routing to reach any selected Channel the account is permitted to post to.
+- Realtime inbound streaming now filters one server WebSocket to the complete selected Channel set.
+- Legacy per-Channel application-token entries remain supported and migrate to config-entry version 3 without changing their existing entity identity.
+
+### Compatibility
+
+- The technical Home Assistant domain remains `gotify_mu` and the existing `gotify_mu.send` action ID remains valid.
+- Existing `entry_id` Push Message automations continue to work. New automations should use the Channel picker.
+- Existing application-token image workflows remain supported. Server-credential per-Channel staged image upload requires corresponding Monita server support and fails clearly rather than silently dropping the requested image.
+
+
 ## 1.3.0 - 2026-09-27
 
 ### Rebranded

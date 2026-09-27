@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -18,10 +19,12 @@ from homeassistant.exceptions import (
     ServiceValidationError,
 )
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import (
     GotifyMUAuthError,
+    GotifyMUChannel,
     GotifyMUClient,
     GotifyMUConnectionError,
     GotifyMUError,
@@ -30,6 +33,7 @@ from .api import (
 from .const import (
     CONF_APP_TOKEN,
     CONF_CHANNEL_ID,
+    CONF_CHANNEL_IDS,
     CONF_CHANNEL_NAME,
     CONF_CLIENT_TOKEN,
     CONF_DEFAULT_PRIORITY,
@@ -62,6 +66,8 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("title"): cv.string,
         vol.Optional("priority"): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
         vol.Optional("markdown", default=False): cv.boolean,
+        vol.Optional("channel"): cv.entity_id,
+        vol.Optional("channel_id"): vol.Coerce(int),
         vol.Optional("entry_id"): cv.string,
         vol.Exclusive("image_entity", "image_source"): cv.entity_id,
         vol.Exclusive("image_url", "image_source"): cv.string,
@@ -71,17 +77,20 @@ SERVICE_SCHEMA = vol.Schema(
 
 MessageCallback = Callable[[dict[str, Any]], None]
 StatusCallback = Callable[[], None]
+_CHANNEL_NOTIFY_UNIQUE_ID = re.compile(r"_channel_(\d+)_notify$")
 
 
 @dataclass(slots=True)
 class GotifyMURuntimeData:
-    """Runtime data for one Monita config entry."""
+    """Runtime data for one Monita server/config entry."""
 
     client: GotifyMUClient
     channel_id: int | None
     channel_name: str
     entry_id: str
     inbound_enabled: bool
+    channels: dict[int, GotifyMUChannel] = field(default_factory=dict)
+    selected_channel_ids: tuple[int, ...] = ()
     native_bridge: GotifyMUNativeBridge | None = None
     stream_connected: bool = False
     stream_reconnects: int = 0
@@ -89,6 +98,19 @@ class GotifyMURuntimeData:
     _listeners: set[MessageCallback] = field(default_factory=set)
     _status_listeners: set[StatusCallback] = field(default_factory=set)
     _stop_event: asyncio.Event = field(default_factory=asyncio.Event)
+
+    @property
+    def active_channel_ids(self) -> tuple[int, ...]:
+        """Return the Channels this entry exposes to Home Assistant."""
+        if self.selected_channel_ids:
+            return self.selected_channel_ids
+        if self.channel_id is not None:
+            return (self.channel_id,)
+        return ()
+
+    def channel(self, channel_id: int) -> GotifyMUChannel | None:
+        """Return metadata for one selected Channel."""
+        return self.channels.get(channel_id)
 
     @callback
     def async_subscribe(self, listener: MessageCallback) -> Callable[[], None]:
@@ -152,6 +174,107 @@ def _message_is_from_this_entry(entry_id: str, message: dict[str, Any]) -> bool:
     return isinstance(origin, dict) and origin.get("entry_id") == entry_id
 
 
+def _channel_id_from_notify_unique_id(
+    runtime: GotifyMURuntimeData,
+    unique_id: str,
+) -> int | None:
+    """Resolve a Monita Channel from one notification entity unique ID."""
+    match = _CHANNEL_NOTIFY_UNIQUE_ID.search(unique_id)
+    if match:
+        return int(match.group(1))
+    if unique_id.endswith("_notify"):
+        return runtime.channel_id
+    return None
+
+
+def _resolve_push_target(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> tuple[GotifyMUConfigEntry, int]:
+    """Resolve the selected server entry and destination Channel."""
+    loaded = [
+        entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.state is ConfigEntryState.LOADED
+    ]
+    if not loaded:
+        raise ServiceValidationError("No loaded Monita server is configured")
+
+    channel_entity = call.data.get("channel")
+    requested_entry_id = call.data.get("entry_id")
+    requested_channel_id = call.data.get("channel_id")
+
+    selected: GotifyMUConfigEntry | None = None
+    target_channel_id: int | None = None
+
+    if channel_entity:
+        registry_entry = er.async_get(hass).async_get(channel_entity)
+        if (
+            registry_entry is None
+            or registry_entry.platform != DOMAIN
+            or registry_entry.domain != "notify"
+            or not registry_entry.config_entry_id
+        ):
+            raise ServiceValidationError(
+                "Choose a Monita notification entity for Channel"
+            )
+        selected = next(
+            (
+                entry
+                for entry in loaded
+                if entry.entry_id == registry_entry.config_entry_id
+            ),
+            None,
+        )
+        if selected is None:
+            raise ServiceValidationError(
+                "The selected Monita Channel is not currently loaded"
+            )
+        target_channel_id = _channel_id_from_notify_unique_id(
+            selected.runtime_data,
+            registry_entry.unique_id,
+        )
+
+    if selected is None and requested_entry_id:
+        selected = next(
+            (entry for entry in loaded if entry.entry_id == requested_entry_id),
+            None,
+        )
+        if selected is None:
+            raise ServiceValidationError(
+                "No loaded Monita config entry matches the request"
+            )
+
+    if selected is None:
+        if len(loaded) != 1:
+            raise ServiceValidationError(
+                "Choose a Monita Channel when more than one server is configured"
+            )
+        selected = loaded[0]
+
+    if target_channel_id is None and requested_channel_id is not None:
+        target_channel_id = int(requested_channel_id)
+
+    runtime = selected.runtime_data
+    active = getattr(runtime, "active_channel_ids", None)
+    if active is None:
+        legacy_channel_id = getattr(runtime, "channel_id", None)
+        active = (legacy_channel_id,) if legacy_channel_id is not None else ()
+    if target_channel_id is None:
+        if len(active) != 1:
+            raise ServiceValidationError(
+                "Choose a Monita Channel for this Push Message action"
+            )
+        target_channel_id = active[0]
+
+    if target_channel_id not in active:
+        raise ServiceValidationError(
+            "The selected Channel is not enabled for this Monita server"
+        )
+
+    return selected, target_channel_id
+
+
 async def _async_stream_loop(
     hass: HomeAssistant,
     entry: GotifyMUConfigEntry,
@@ -173,17 +296,16 @@ async def _async_stream_loop(
                     return
 
                 delay = 1
+                try:
+                    message_app_id = int(message.get("appid", 0))
+                except (TypeError, ValueError):
+                    continue
+                if (
+                    runtime.active_channel_ids
+                    and message_app_id not in runtime.active_channel_ids
+                ):
+                    continue
 
-                if runtime.channel_id is not None:
-                    try:
-                        message_app_id = int(message.get("appid", 0))
-                    except (TypeError, ValueError):
-                        continue
-                    if message_app_id != runtime.channel_id:
-                        continue
-
-                # Avoid immediately retriggering an HA automation on the same
-                # notification this integration entry just published.
                 if _message_is_from_this_entry(entry.entry_id, message):
                     continue
 
@@ -227,31 +349,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up Monita integration-level actions."""
 
     async def handle_send(call: ServiceCall) -> None:
-        entries = hass.config_entries.async_entries(DOMAIN)
-        if not entries:
-            raise ServiceValidationError("No Monita instances are configured")
-
-        requested = call.data.get("entry_id")
-        if requested is None:
-            selected = next(
-                (item for item in entries if item.state is ConfigEntryState.LOADED),
-                None,
-            )
-        else:
-            selected = next(
-                (item for item in entries if item.entry_id == requested),
-                None,
-            )
-
-        if selected is None:
-            raise ServiceValidationError(
-                "No loaded Monita config entry matches the request"
-            )
-        if selected.state is not ConfigEntryState.LOADED:
-            raise ServiceValidationError("Requested Monita config entry is not loaded")
-
-        typed_entry: GotifyMUConfigEntry = selected
-        runtime = typed_entry.runtime_data
+        selected, target_channel_id = _resolve_push_target(hass, call)
+        runtime = selected.runtime_data
         priority = call.data.get(
             "priority",
             selected.options.get(CONF_DEFAULT_PRIORITY, DEFAULT_PRIORITY),
@@ -263,10 +362,18 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         origin.update(
             {
                 "entry_id": selected.entry_id,
+                "channel_id": target_channel_id,
                 "source": "monita-ha",
             }
         )
         extras[INTEGRATION_ORIGIN_EXTRA] = origin
+
+        use_client_route = bool(runtime.client.client_token)
+        legacy_image_route = bool(
+            runtime.client.app_token
+            and runtime.channel_id is not None
+            and target_channel_id == runtime.channel_id
+        )
 
         try:
             image = None
@@ -281,6 +388,12 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
             attachment_ids: list[int] | None = None
             if image is not None:
+                if use_client_route and not legacy_image_route:
+                    raise HomeAssistantError(
+                        "This server does not expose per-Channel staged image "
+                        "uploads for server credentials yet. Push text/Markdown "
+                        "or use a legacy Channel application-token entry for images."
+                    )
                 try:
                     attachment = await runtime.client.async_upload_image(
                         image.content,
@@ -312,13 +425,16 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             if attachment_ids is not None:
                 send_kwargs["attachment_ids"] = attachment_ids
 
+            if use_client_route and not legacy_image_route:
+                send_kwargs["channel_id"] = target_channel_id
+
             await runtime.client.async_send(
                 call.data["message"],
                 **send_kwargs,
             )
         except GotifyMUAuthError as err:
             selected.async_start_reauth(hass)
-            raise HomeAssistantError("Monita rejected the application token") from err
+            raise HomeAssistantError("Monita rejected the configured credential") from err
         except GotifyMURateLimitError as err:
             raise HomeAssistantError("Monita rate limited the notification") from err
         except GotifyMUConnectionError as err:
@@ -336,47 +452,58 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate legacy config entries to the stable v2 data model."""
-    if entry.version > 2:
+    """Migrate legacy per-Channel entries without breaking their identities."""
+    if entry.version > 3:
         return False
-    if entry.version == 2:
-        return True
 
     data = dict(entry.data)
-    server_url = data[CONF_SERVER_URL].rstrip("/")
-    data[CONF_SERVER_URL] = server_url
+    options = dict(entry.options)
 
-    if channel_id := data.get(CONF_CHANNEL_ID):
-        unique_id = channel_unique_id(server_url, int(channel_id))
+    if entry.version < 2:
+        server_url = data[CONF_SERVER_URL].rstrip("/")
+        data[CONF_SERVER_URL] = server_url
+        if channel_id := data.get(CONF_CHANNEL_ID):
+            unique_id = channel_unique_id(server_url, int(channel_id))
+        else:
+            unique_id = fallback_unique_id(server_url, data[CONF_APP_TOKEN])
     else:
-        unique_id = fallback_unique_id(server_url, data[CONF_APP_TOKEN])
+        unique_id = entry.unique_id
+
+    if entry.version < 3 and data.get(CONF_CHANNEL_ID) is not None:
+        options.setdefault(CONF_CHANNEL_IDS, [int(data[CONF_CHANNEL_ID])])
 
     hass.config_entries.async_update_entry(
         entry,
         data=data,
+        options=options,
         unique_id=unique_id,
-        version=2,
+        version=3,
         minor_version=0,
     )
-    _LOGGER.info("Migrated Monita config entry %s to version 2", entry.title)
+    _LOGGER.info("Migrated Monita config entry %s to version 3", entry.title)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> bool:
-    """Set up Monita from a config entry."""
+    """Set up one Monita server or legacy Channel entry."""
+    app_token = entry.data.get(CONF_APP_TOKEN, "")
+    client_token = entry.data.get(CONF_CLIENT_TOKEN)
     client = GotifyMUClient(
         async_get_clientsession(hass),
         entry.data[CONF_SERVER_URL],
-        entry.data[CONF_APP_TOKEN],
+        app_token,
         entry.data.get(CONF_VERIFY_SSL, True),
-        entry.data.get(CONF_CLIENT_TOKEN),
+        client_token,
     )
 
     try:
         await client.async_health()
-        application = await client.async_validate_application_token()
-        channels = []
-        if entry.data.get(CONF_CLIENT_TOKEN):
+        application: GotifyMUChannel | None = None
+        if app_token:
+            application = await client.async_validate_application_token()
+
+        channels: list[GotifyMUChannel] = []
+        if client_token:
             await client.async_validate_client_token()
             channels = await client.async_get_channels()
     except GotifyMUAuthError as err:
@@ -388,33 +515,65 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
 
     data = dict(entry.data)
     configured_channel_id = data.get(CONF_CHANNEL_ID)
+    by_id = {channel.id: channel for channel in channels}
+
     if application is not None:
-        if configured_channel_id is not None and application.id != configured_channel_id:
+        if (
+            configured_channel_id is not None
+            and application.id != int(configured_channel_id)
+        ):
             raise ConfigEntryAuthFailed(
                 "The application token belongs to a different Monita Channel"
             )
         configured_channel_id = application.id
         data[CONF_CHANNEL_ID] = application.id
         data.setdefault(CONF_CHANNEL_NAME, application.name)
+        by_id.setdefault(application.id, application)
 
-    if configured_channel_id is not None and entry.data.get(CONF_CLIENT_TOKEN):
-        if not any(channel.id == configured_channel_id for channel in channels):
-            raise ConfigEntryAuthFailed(
-                "The configured Monita client token cannot access this Channel"
-            )
+    has_selected_option = CONF_CHANNEL_IDS in entry.options
+    selected_raw = entry.options.get(CONF_CHANNEL_IDS, [])
+    selected = [int(value) for value in selected_raw]
+
+    if not selected and not has_selected_option and configured_channel_id is not None:
+        selected = [int(configured_channel_id)]
+    if client_token:
+        selected = [channel_id for channel_id in selected if channel_id in by_id]
+    if not selected and not has_selected_option and application is not None:
+        selected = [application.id]
+
+    if not selected:
+        raise ConfigEntryNotReady(
+            "None of the selected Monita Channels are currently accessible; "
+            "update Manage Channels"
+        )
+
+    primary_channel_id = (
+        int(configured_channel_id)
+        if configured_channel_id is not None
+        and int(configured_channel_id) in selected
+        else selected[0]
+    )
+    primary = by_id.get(primary_channel_id)
+    primary_name = (
+        primary.name
+        if primary is not None
+        else data.get(CONF_CHANNEL_NAME, entry.title)
+    )
 
     if data != dict(entry.data):
         hass.config_entries.async_update_entry(entry, data=data)
 
     runtime = GotifyMURuntimeData(
         client=client,
-        channel_id=configured_channel_id,
-        channel_name=data.get(CONF_CHANNEL_NAME, entry.title),
+        channel_id=primary_channel_id,
+        channel_name=primary_name,
         entry_id=entry.entry_id,
         inbound_enabled=bool(
-            data.get(CONF_CLIENT_TOKEN)
+            client_token
             and entry.options.get(CONF_INBOUND_ENABLED, DEFAULT_INBOUND_ENABLED)
         ),
+        channels=by_id,
+        selected_channel_ids=tuple(selected),
     )
     entry.runtime_data = runtime
     entry.async_on_unload(runtime.async_stop)
@@ -423,7 +582,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
         native_bridge = GotifyMUNativeBridge(
             hass,
             async_get_clientsession(hass),
-            name=runtime.channel_name,
+            name=entry.title,
             server_url=data[CONF_SERVER_URL],
             verify_ssl=data.get(CONF_VERIFY_SSL, True),
             secret=data[CONF_NATIVE_SECRET],
