@@ -15,6 +15,7 @@ It provides native Home Assistant notification entities for Gotify MU Channels a
 - No `configuration.yaml` changes required
 - Standard Home Assistant `notify` entity
 - Native `gotify_mu.send` action with priority and Markdown support
+- Camera/image notifications that upload real image bytes to Gotify MU for mobile and remote access
 - Exact application-token validation without creating a test notification
 - Stable Channel identity on current Gotify MU servers
 - Optional client token for realtime inbound messages
@@ -127,6 +128,8 @@ action:
 
 Home Assistant chooses the final entity ID, so use the entity picker rather than assuming the example ID.
 
+The standard Home Assistant notify entity intentionally remains a text/title path. Use `gotify_mu.send` for image notifications so the integration can capture, validate, stage, and attach the image using Gotify MU's media contract.
+
 ### Gotify MU action
 
 For Gotify-specific priority and Markdown controls, use:
@@ -142,6 +145,49 @@ action:
 ```
 
 If multiple Gotify MU entries are configured, the action UI can target a specific config entry. If no entry is specified, the first loaded Gotify MU entry is used.
+
+### Doorbell and camera image notifications
+
+For a camera entity, use `image_entity`. Home Assistant captures a fresh frame at the moment the action runs, uploads the actual image bytes to Gotify MU using the configured application token, and then sends the message with the returned staged attachment ID.
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Front Door"
+      message: "Someone is at the door."
+      priority: 8
+      image_entity: camera.front_door
+```
+
+The phone never needs access to the Home Assistant camera URL. Gotify MU hosts the staged image, generates its canonical image extras, and serves the same attachment to Gotify MU Web, Channel/Chat history, and Android's normal Big Image notification path. This means the image remains available while the phone is on cellular even when Home Assistant and the camera are LAN-only.
+
+Home Assistant `image.*` entities use the same `image_entity` field:
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Latest Snapshot"
+      message: "A new snapshot is available."
+      image_entity: image.latest_snapshot
+```
+
+For an advanced HTTP/HTTPS source, use `image_url`:
+
+```yaml
+action:
+  - action: gotify_mu.send
+    data:
+      title: "Driveway"
+      message: "Motion detected."
+      priority: 7
+      image_url: "https://camera.example.com/current.jpg"
+```
+
+The integration downloads the URL inside Home Assistant, validates that the response is a supported image, enforces a bounded size, and uploads the bytes to Gotify MU. The original URL is not forwarded to the phone or written into Gotify extras. `image_entity` and `image_url` are mutually exclusive.
+
+If image capture, download, validation, or upload fails, the action fails clearly instead of silently sending a text-only notification. A message-send failure after successful staging leaves the normal temporary server-side orphan for Gotify MU to expire; the integration does not attempt destructive cleanup.
 
 ## Inbound / two-way messages
 
@@ -203,14 +249,24 @@ If Gotify MU rejects the stored native bridge credential, the integration create
 
 ## Compatibility
 
-The integration publishes through Gotify's compatible API:
+The integration publishes text notifications through Gotify's compatible API:
 
 ```text
 POST /message
 X-Gotify-Key: <application-token>
 ```
 
-Gotify MU-specific capabilities are additive. Outbound-only operation remains compatible with Gotify-style servers that do not expose the MU identity endpoint.
+Image notifications additionally use Gotify MU's staged attachment endpoint:
+
+```text
+POST /application/current/attachment
+X-Gotify-Key: <application-token>
+Content-Type: multipart/form-data
+```
+
+The returned staged attachment ID is supplied to `POST /message` as `attachmentIds`. The integration does not invent public media URLs or manually build `gotify-mu::display.images` / `client::notification.bigImageUrl`; Gotify MU owns that canonical contract.
+
+Gotify MU-specific capabilities are additive. Text-only outbound operation remains compatible with Gotify-style servers that do not expose the MU identity or staged attachment endpoints.
 
 ## Development
 
