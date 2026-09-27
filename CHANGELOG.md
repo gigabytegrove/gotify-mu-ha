@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 - 2026-09-27
+
+### Added
+
+- Real image notifications for `gotify_mu.send` using `camera.*`, `image.*`, or advanced HTTP/HTTPS image sources.
+- Secure in-Home-Assistant image retrieval followed by multipart staging through `POST /application/current/attachment` with the configured Gotify MU application token.
+- Staged attachment IDs on the normal `POST /message` payload while preserving priority, Markdown, caller extras, and the Home Assistant origin marker.
+- Bounded image downloads, raster MIME/signature validation, and source-URL secret redaction behavior.
+- Service UI selectors and doorbell/camera documentation for image notifications.
+- Regression coverage for capture, download, staging, authentication, oversized/invalid content, failure-closed delivery, and recoverable staged orphans.
+
+### Changed
+
+- Standard Home Assistant `notify.send_message` remains the stable text/title path; image notifications use `gotify_mu.send`.
+- Caller-supplied Gotify extras are merged with the integration origin marker instead of being replaced.
+
+
 ## 1.1.0 - 2026-09-26
 
 ### Added
