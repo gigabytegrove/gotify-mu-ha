@@ -217,3 +217,44 @@ async def test_chat_image_send_uses_client_token_and_multipart():
     assert isinstance(kwargs["data"], FormData)
     assert "json" not in kwargs
     assert result["id"] == 9
+
+
+async def test_capabilities_returns_chat_image_feature():
+    """Capability discovery exposes the server's Chat image support."""
+    session = _FakeSession(
+        [{"product": "gotify-mu", "features": {"chatImages": True}}]
+    )
+    client = GotifyMUClient(session, SERVER, "", True, "client-secret")
+
+    capabilities = await client.async_capabilities()
+
+    method, url, kwargs = session.calls[0]
+    assert method == "GET"
+    assert url == f"{SERVER}/api/mu/v1/capabilities"
+    assert kwargs["headers"] == {"X-Gotify-Key": "client-secret"}
+    assert capabilities["features"]["chatImages"] is True
+
+
+async def test_send_chat_image_uses_client_token_and_multipart():
+    """A Chat image is posted directly to the selected Channel."""
+    session = _FakeSession([{"id": 55, "appid": 8}])
+    client = GotifyMUClient(session, SERVER, "", True, "client-secret")
+    image = b"\xff\xd8\xff\xe0jpeg"
+
+    result = await client.async_send_chat_image(
+        "Person detected",
+        channel_id=8,
+        image=image,
+        filename="front-door.jpg",
+        content_type="image/jpeg",
+        priority=9,
+        extras={"homeassistant::gotify_mu": {"source": "monita-ha"}},
+    )
+
+    method, url, kwargs = session.calls[0]
+    assert method == "POST"
+    assert url == f"{SERVER}/application/8/chat-message"
+    assert kwargs["headers"] == {"X-Gotify-Key": "client-secret"}
+    assert isinstance(kwargs["data"], FormData)
+    assert "json" not in kwargs
+    assert result == {"id": 55, "appid": 8}
