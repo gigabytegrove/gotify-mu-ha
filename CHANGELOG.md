@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.0 - 2026-09-28
+
+### Added
+
+- Direct Home Assistant camera/image delivery into Monita Chat Channels on Monita 1.1.7+ using the server-centric client token.
+- Capability discovery for Monita's `chatImages` feature.
+- Multipart Chat-image publishing that preserves priority, Markdown display metadata, caller extras, and the Home Assistant origin marker.
+- Regression coverage for capability discovery, direct Chat image publishing, supported Chat routing, and failure-closed behavior on non-Chat Channels.
+
+### Compatibility
+
+- Existing application-token staged-image workflows remain unchanged.
+- Server-centric image requests use the direct Chat-image route only when the selected Channel is a Chat and the server advertises `chatImages: true`.
+- Image requests to unsupported servers or Notification Channels fail clearly instead of silently sending text without the requested image.
+
 ## 1.4.0 - 2026-09-27
 
 ### Added
