@@ -42,12 +42,18 @@ class _FakeSession:
         self._payloads = deque(payloads)
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
 
-    def post(self, url: str, **kwargs):
-        self.calls.append(("POST", url, kwargs))
+    def _response(self, method: str, url: str, kwargs: dict[str, Any]):
+        self.calls.append((method, url, kwargs))
         payload = self._payloads.popleft()
         if isinstance(payload, _FakeResponse):
             return payload
         return _FakeResponse(url, payload)
+
+    def get(self, url: str, **kwargs):
+        return self._response("GET", url, kwargs)
+
+    def post(self, url: str, **kwargs):
+        return self._response("POST", url, kwargs)
 
 
 async def test_text_only_send_payload_is_unchanged():
@@ -174,3 +180,40 @@ def test_channel_post_permissions_follow_monita_roles():
     assert not GotifyMUClient._parse_channel(
         {"id": 4, "name": "Read only", "role": "readonly"}
     ).can_post
+
+async def test_capabilities_discovers_chat_images():
+    """Server-centric setup discovers first-class Chat image support."""
+    session = _FakeSession([{"features": {"chatImages": True}}])
+    client = GotifyMUClient(session, SERVER, "", True, "client-secret")
+
+    capabilities = await client.async_capabilities()
+
+    method, url, kwargs = session.calls[0]
+    assert method == "GET"
+    assert url == f"{SERVER}/api/mu/v1/capabilities"
+    assert kwargs["headers"] == {"X-Gotify-Key": "client-secret"}
+    assert capabilities["features"]["chatImages"] is True
+
+
+async def test_chat_image_send_uses_client_token_and_multipart():
+    """Chat images use the Channel-scoped multipart endpoint."""
+    session = _FakeSession([{"id": 9, "appid": 8, "message": "Person detected"}])
+    client = GotifyMUClient(session, SERVER, "", True, "client-secret")
+
+    result = await client.async_send_chat_image(
+        "Person detected",
+        channel_id=8,
+        image=b"\xff\xd8\xff\xe0jpeg",
+        filename="front-door.jpg",
+        content_type="image/jpeg",
+        priority=9,
+        extras={"homeassistant::gotify_mu": {"entry_id": "entry-1"}},
+    )
+
+    method, url, kwargs = session.calls[0]
+    assert method == "POST"
+    assert url == f"{SERVER}/application/8/chat-message"
+    assert kwargs["headers"] == {"X-Gotify-Key": "client-secret"}
+    assert isinstance(kwargs["data"], FormData)
+    assert "json" not in kwargs
+    assert result["id"] == 9
