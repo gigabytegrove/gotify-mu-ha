@@ -382,6 +382,7 @@ class GotifyMUClient:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
             raise GotifyMUConnectionError(str(err)) from err
+
     async def async_upload_image(
         self,
         image: bytes,
