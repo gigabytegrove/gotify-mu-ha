@@ -303,6 +303,85 @@ class GotifyMUClient:
         except (ClientConnectionError, ClientError, TimeoutError) as err:
             raise GotifyMUConnectionError(str(err)) from err
 
+    async def async_capabilities(self) -> dict[str, Any]:
+        """Return optional Monita capability metadata."""
+        token = self.client_token or self.app_token
+        headers = self._headers(token) if token else {}
+        try:
+            async with self.session.get(
+                f"{self.server_url}/api/mu/v1/capabilities",
+                headers=headers,
+                ssl=self.verify_ssl,
+                timeout=self._timeout,
+            ) as response:
+                if response.status == 404:
+                    return {}
+                await self._raise_for_status(response)
+                data = await self._read_json(response)
+                return data if isinstance(data, dict) else {}
+        except GotifyMUError:
+            raise
+        except (ClientConnectionError, ClientError, TimeoutError) as err:
+            raise GotifyMUConnectionError(str(err)) from err
+
+    async def async_send_chat_image(
+        self,
+        message: str,
+        *,
+        channel_id: int,
+        image: bytes,
+        filename: str,
+        content_type: str,
+        priority: int = 5,
+        extras: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Send one image directly into a Monita Chat Channel."""
+        if not self.client_token:
+            raise GotifyMUAuthError(
+                "A Monita client token is required to send Chat images"
+            )
+        if not image:
+            raise GotifyMUError("Chat image is empty")
+
+        form = FormData()
+        form.add_field("message", message)
+        form.add_field("priority", str(priority))
+        if extras:
+            form.add_field(
+                "extras",
+                json.dumps(extras, separators=(",", ":")),
+                content_type="application/json",
+            )
+        form.add_field(
+            "images",
+            image,
+            filename=filename,
+            content_type=content_type,
+        )
+
+        try:
+            async with self.session.post(
+                f"{self.server_url}/application/{int(channel_id)}/chat-message",
+                headers=self._headers(self.client_token),
+                data=form,
+                ssl=self.verify_ssl,
+                timeout=self._timeout,
+            ) as response:
+                if response.status == 404:
+                    raise GotifyMUError(
+                        "This Monita server does not support Chat image messages"
+                    )
+                if response.status == 403:
+                    raise GotifyMUError(
+                        "Monita does not allow this account to post to the selected Chat Channel"
+                    )
+                await self._raise_for_status(response, auth_context="client token")
+                data = await self._read_json(response)
+                return data if isinstance(data, dict) else {}
+        except GotifyMUError:
+            raise
+        except (ClientConnectionError, ClientError, TimeoutError) as err:
+            raise GotifyMUConnectionError(str(err)) from err
     async def async_upload_image(
         self,
         image: bytes,
