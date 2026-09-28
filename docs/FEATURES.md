@@ -803,7 +803,7 @@ The current staged attachment contract is application-token scoped:
 POST /application/current/attachment
 ```
 
-Legacy application-token Channel entries retain image delivery. Pure server-centric entries fail explicitly for image requests until the Monita server exposes a per-Channel staged-upload contract for the server credential. Requested images are never silently omitted.
+Legacy application-token Channel entries retain their staged-image delivery through `POST /application/current/attachment`. On **Monita 1.1.7+**, server-centric client-token entries can send captured images directly to selected **Chat Channels** through the authenticated Chat-image endpoint. The integration checks the server's `chatImages` capability and the destination Channel type before using that path. A server-centric image request targeting a Notification Channel, or a server that does not advertise Chat-image support, fails explicitly rather than silently dropping the image.
 
 ### Native bridge
 
@@ -884,7 +884,7 @@ action:
 | Notify entity per push-capable Channel | Yes | Yes | No |
 | **Push Message** text/Markdown | Yes | Yes | No |
 | Priority/Markdown/extras | Yes | Yes | No |
-| Camera/image notifications | Pending server per-Channel staging | Yes | No |
+| Camera/image notifications | Yes for Chat Channels on Monita 1.1.7+ | Yes | No |
 | Realtime inbound selected Channels | Yes | With client token | No |
 | Messages event entity | Yes | With client token | No |
 | Inbound connection sensor | Yes | With client token | No |
@@ -892,4 +892,4 @@ action:
 | Native HA → Monita events | Independent | Independent | Required |
 | Native bridge health/Repairs | Independent | Independent | Required |
 
-New installs use one client-token server connection for Channel discovery, publishing, and inbound messages. Legacy application-token entries remain supported for backward compatibility and current staged-image delivery.
+New installs use one client-token server connection for Channel discovery, publishing, inbound messages, and direct Chat-image delivery on Monita 1.1.7+. Legacy application-token entries remain supported for backward compatibility and staged-image delivery.
