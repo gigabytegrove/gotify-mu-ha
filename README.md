@@ -25,7 +25,7 @@ The README covers installation and the most common workflows. The complete guide
 - No `configuration.yaml` changes required
 - Standard Home Assistant `notify` entity
 - **Push Message** action (`gotify_mu.send`) with Channel targeting, priority, Markdown, and advanced extras
-- Camera/image notifications that upload real image bytes to Monita for mobile and remote access
+- Camera/image notifications that upload real image bytes to Monita for mobile and remote access, including direct delivery into Chat Channels on Monita 1.1.7+
 - Exact application-token validation without creating a test notification
 - Stable Channel identity on current Monita servers
 - One Monita server connection can discover and expose multiple Channels through a client token
@@ -225,7 +225,7 @@ When one server exposes several Channels, the Channel target is required. Existi
 
 ### Doorbell and camera image notifications
 
-For a camera entity, use `image_entity`. Home Assistant captures a fresh frame at the moment the action runs, uploads the actual image bytes to Monita using the configured application token, and then sends the message with the returned staged attachment ID.
+For a camera entity, use `image_entity`. Home Assistant captures a fresh frame at the moment the action runs. On **Monita 1.1.7+**, a server-centric client-token connection can send that image directly into a selected **Chat Channel**, where it appears as a normal inline Chat photo. Legacy application-token entries continue to use the staged-attachment workflow before sending the message.
 
 **When to use it:** choose `image_entity` for doorbells and Home Assistant-managed cameras/images. It is the preferred workflow because Home Assistant performs the capture directly; the phone never needs a camera URL, Home Assistant login, or LAN access.
 
@@ -239,7 +239,7 @@ action:
       image_entity: camera.front_door
 ```
 
-The phone never needs access to the Home Assistant camera URL. Monita hosts the staged image, generates its canonical image extras, and serves the same attachment to Monita Web, Channel/Chat history, and Android's normal Big Image notification path. This means the image remains available while the phone is on cellular even when Home Assistant and the camera are LAN-only.
+The phone never needs access to the Home Assistant camera URL. Home Assistant sends the image bytes to Monita, and Monita serves the authenticated attachment to the Web UI and Monita for Android. For Chat Channels on Monita 1.1.7+, the photo is stored directly on the Chat message and appears inline in the conversation; compatible Android clients can also show the first attached photo as a Big Picture notification preview for unprotected Chats.
 
 Home Assistant `image.*` entities use the same `image_entity` field:
 
