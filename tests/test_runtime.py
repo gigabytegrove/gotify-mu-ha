@@ -50,13 +50,14 @@ def _channel(
     *,
     role: str = "owner",
     allow_member_post: bool = False,
+    channel_type: str = "notification",
 ) -> GotifyMUChannel:
     return GotifyMUChannel(
         id=channel_id,
         name=name,
         role=role,
         allow_member_post=allow_member_post,
-        channel_type="notification",
+        channel_type=channel_type,
     )
 
 
@@ -448,8 +449,8 @@ async def test_send_service_stages_image_and_preserves_message_controls(hass):
     )
 
 
-async def test_server_image_request_fails_instead_of_dropping_image(hass):
-    """Server-centric image requests fail closed until per-Channel staging exists."""
+async def test_server_chat_image_routes_directly_to_chat_channel(hass):
+    """Server-centric Chat images use Monita's direct Chat image endpoint."""
     image = GotifyMUImage(
         content=b"\xff\xd8\xff\xe0jpeg",
         filename="front-door.jpg",
@@ -458,14 +459,91 @@ async def test_server_image_request_fails_instead_of_dropping_image(hass):
     client = SimpleNamespace(
         app_token="",
         client_token="client-token",
+        async_send_chat_image=AsyncMock(return_value={"id": 55}),
         async_upload_image=AsyncMock(),
         async_send=AsyncMock(),
+    )
+    chat = _channel(
+        8,
+        "Doorbell Chat",
+        role="publisher",
+        allow_member_post=True,
+        channel_type="chat",
     )
     runtime = SimpleNamespace(
         client=client,
         channel_id=7,
         channel_name="Security",
         active_channel_ids=(7, 8),
+        capabilities={"features": {"chatImages": True}},
+        channel=lambda channel_id: chat if channel_id == 8 else None,
+    )
+    entry = _entry(runtime, legacy=False)
+
+    with (
+        patch.object(hass.config_entries, "async_entries", return_value=[entry]),
+        patch(
+            "custom_components.gotify_mu.async_acquire_entity_image",
+            new=AsyncMock(return_value=image),
+        ),
+    ):
+        assert await async_setup(hass, {})
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEND,
+            {
+                "entry_id": ENTRY_ID,
+                "channel_id": 8,
+                "message": "Person detected",
+                "priority": 9,
+                "markdown": True,
+                "image_entity": "camera.front_door",
+            },
+            blocking=True,
+        )
+
+    client.async_send_chat_image.assert_awaited_once_with(
+        "Person detected",
+        channel_id=8,
+        image=image.content,
+        filename=image.filename,
+        content_type=image.content_type,
+        priority=9,
+        extras={
+            INTEGRATION_ORIGIN_EXTRA: {
+                "entry_id": ENTRY_ID,
+                "channel_id": 8,
+                "source": "monita-ha",
+            },
+            "client::display": {"contentType": "text/markdown"},
+        },
+    )
+    client.async_upload_image.assert_not_awaited()
+    client.async_send.assert_not_awaited()
+
+
+async def test_server_image_request_fails_for_non_chat_channel(hass):
+    """Server-centric images never silently degrade on a non-Chat Channel."""
+    image = GotifyMUImage(
+        content=b"\xff\xd8\xff\xe0jpeg",
+        filename="front-door.jpg",
+        content_type="image/jpeg",
+    )
+    client = SimpleNamespace(
+        app_token="",
+        client_token="client-token",
+        async_send_chat_image=AsyncMock(),
+        async_upload_image=AsyncMock(),
+        async_send=AsyncMock(),
+    )
+    channel = _channel(8, "Security", role="publisher")
+    runtime = SimpleNamespace(
+        client=client,
+        channel_id=7,
+        channel_name="Security",
+        active_channel_ids=(7, 8),
+        capabilities={"features": {"chatImages": True}},
+        channel=lambda channel_id: channel if channel_id == 8 else None,
     )
     entry = _entry(runtime, legacy=False)
 
@@ -477,7 +555,7 @@ async def test_server_image_request_fails_instead_of_dropping_image(hass):
         ),
         pytest.raises(
             HomeAssistantError,
-            match="does not expose per-Channel staged image uploads",
+            match="does not support direct Chat image messages",
         ),
     ):
         assert await async_setup(hass, {})
@@ -493,6 +571,7 @@ async def test_server_image_request_fails_instead_of_dropping_image(hass):
             blocking=True,
         )
 
+    client.async_send_chat_image.assert_not_awaited()
     client.async_upload_image.assert_not_awaited()
     client.async_send.assert_not_awaited()
 

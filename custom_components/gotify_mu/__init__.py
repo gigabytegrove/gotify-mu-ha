@@ -91,6 +91,7 @@ class GotifyMURuntimeData:
     inbound_enabled: bool
     channels: dict[int, GotifyMUChannel] = field(default_factory=dict)
     selected_channel_ids: tuple[int, ...] = ()
+    capabilities: dict[str, Any] = field(default_factory=dict)
     native_bridge: GotifyMUNativeBridge | None = None
     stream_connected: bool = False
     stream_reconnects: int = 0
@@ -389,11 +390,40 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             attachment_ids: list[int] | None = None
             if image is not None:
                 if use_client_route and not legacy_image_route:
-                    raise HomeAssistantError(
-                        "This server does not expose per-Channel staged image "
-                        "uploads for server credentials yet. Push text/Markdown "
-                        "or use a legacy Channel application-token entry for images."
+                    channel = runtime.channel(target_channel_id)
+                    features = getattr(runtime, "capabilities", {}).get(
+                        "features", {}
                     )
+                    chat_images_supported = bool(
+                        channel is not None
+                        and channel.channel_type == "chat"
+                        and isinstance(features, dict)
+                        and features.get("chatImages") is True
+                    )
+                    if not chat_images_supported:
+                        raise HomeAssistantError(
+                            "This Monita server/Channel does not support direct "
+                            "Chat image messages. Update Monita and select a Chat Channel, "
+                            "or use a legacy Channel application-token entry for images."
+                        )
+
+                    chat_extras = dict(extras)
+                    if call.data.get("markdown", False):
+                        chat_extras.setdefault(
+                            "client::display",
+                            {"contentType": "text/markdown"},
+                        )
+                    await runtime.client.async_send_chat_image(
+                        call.data["message"],
+                        channel_id=target_channel_id,
+                        image=image.content,
+                        filename=image.filename,
+                        content_type=image.content_type,
+                        priority=priority,
+                        extras=chat_extras,
+                    )
+                    return
+
                 try:
                     attachment = await runtime.client.async_upload_image(
                         image.content,
@@ -503,9 +533,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
             application = await client.async_validate_application_token()
 
         channels: list[GotifyMUChannel] = []
+        capabilities: dict[str, Any] = {}
         if client_token:
             await client.async_validate_client_token()
             channels = await client.async_get_channels()
+            capabilities = await client.async_capabilities()
     except GotifyMUAuthError as err:
         raise ConfigEntryAuthFailed(str(err)) from err
     except (GotifyMUConnectionError, GotifyMURateLimitError) as err:
@@ -574,6 +606,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
         ),
         channels=by_id,
         selected_channel_ids=tuple(selected),
+        capabilities=capabilities,
     )
     entry.runtime_data = runtime
     entry.async_on_unload(runtime.async_stop)
