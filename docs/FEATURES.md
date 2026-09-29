@@ -356,9 +356,11 @@ Supported image types:
 
 Text and Markdown Push Message publishing is fully server-centric and uses one client token plus the selected Channel ID.
 
-The existing staged-image upload contract is still application-token scoped. Therefore, legacy Channel entries with an application token retain image delivery, while a pure server-centric entry fails clearly if an image is requested for a Channel that does not have that legacy application-token context. The integration never silently drops a requested image.
+With **Monita 1.1.7 or newer**, Monita for Home Assistant 1.5.0 can send a captured/downloaded image directly into a selected **Chat Channel** when the server advertises the `chatImages` capability. The image is uploaded as an authenticated Chat attachment and stored with the Chat message.
 
-This keeps the multi-Channel rollout safe while the corresponding Monita server-side per-Channel staged-upload contract is added.
+Legacy per-Channel application-token entries continue to use the staged attachment workflow. For server-centric entries, image delivery to unsupported servers or to Notification Channels without a supported image route fails clearly instead of silently sending a text-only message.
+
+The integration always checks the server capability and selected Channel type before choosing the direct Chat-image path.
 
 ### Failure behavior
 
@@ -388,9 +390,9 @@ Front Door without image
 
 This is intentional because silent image loss can make security-camera automations misleading.
 
-### Staged upload contract
+### Image upload contracts
 
-Images are uploaded with the configured application token to:
+For legacy per-Channel application-token entries, images are uploaded with the configured application token to:
 
 ```text
 POST /application/current/attachment
@@ -413,6 +415,8 @@ Home Assistant does not manually create:
 - public Monita media URLs
 
 Monita owns those canonical fields.
+
+For server-centric Chat Channels on Monita 1.1.7+, the integration instead uses Monita's authenticated Chat-image multipart route with the client token and selected Channel ID. That route stores the image directly on the Chat message and preserves the caller's title/message, priority, Markdown metadata, extras, and Home Assistant origin marker.
 
 ### Multiple-image readiness
 
