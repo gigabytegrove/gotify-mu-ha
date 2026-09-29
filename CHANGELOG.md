@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.1 - 2026-09-29
+
+### Maintenance
+
+- Prepared the integration metadata for the HACS-ready 1.5.1 release.
+- Added repository validation for HACS default-repository requirements.
+- Removed stale Home Assistant development branches after their work was incorporated into `main`.
+- Synchronized the README and release documentation with the manifest version.
+
+### Compatibility
+
+- No user-facing configuration migration is required from 1.5.0.
+- The compatibility-safe technical domain remains `gotify_mu`, and existing config entries, selected Channels, entities, automations, credentials, and the `gotify_mu.send` action remain valid.
+
 ## 1.5.0 - 2026-09-28
 
 ### Added
