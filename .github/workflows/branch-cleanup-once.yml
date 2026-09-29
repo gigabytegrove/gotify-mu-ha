@@ -1,4 +1,4 @@
-name: One-time stale branch cleanup
+name: One-time merged PR branch cleanup
 
 on:
   push:
@@ -9,42 +9,50 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   cleanup:
-    name: Delete retired branches
+    name: Delete branches whose PRs are already merged
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Delete explicitly retired branches
+      - name: Delete branches with a merged pull request
         shell: bash
         run: |
           set -euo pipefail
+          git fetch origin --prune
 
-          branches=(
-          'branding/v1.0.2-canonical'
-          'docs/complete-feature-guide'
-          'docs/hacs-install-update'
-          'feature/chat-images-1.5.0'
-          'feature/home-assistant-native-pairing'
-          'feature/image-notifications'
-          'feature/server-channel-selection'
-          'maintenance/repo-docs-2026-09-29'
-          'rebrand/monita-home-assistant'
-          'release/v1.0.0-rc1'
-          'release/1.0-hardening'
-          'v0.2.0'
+          mapfile -t branches < <(
+            git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin |
+              grep -vE '^(main|HEAD)$' || true
           )
 
+          if [ "${#branches[@]}" -eq 0 ]; then
+            echo "No non-default branches exist."
+            exit 0
+          fi
+
+          deleted=0
+          kept=0
+
           for branch in "${branches[@]}"; do
-            if git ls-remote --exit-code --heads origin "refs/heads/${branch}" >/dev/null 2>&1; then
-              echo "Deleting ${branch}"
+            merged_pr="$(gh pr list --state merged --head "${branch}" --json number --jq '.[0].number // empty' --limit 1)"
+            if [ -n "${merged_pr}" ]; then
+              echo "Deleting ${branch} (merged PR #${merged_pr})"
               git push origin --delete "${branch}"
+              deleted=$((deleted + 1))
             else
-              echo "Already absent: ${branch}"
+              echo "Keeping ${branch}: no merged PR proves it is retired."
+              kept=$((kept + 1))
             fi
           done
+
+          echo "Deleted: ${deleted}"
+          echo "Preserved: ${kept}"
