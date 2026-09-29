@@ -1,0 +1,50 @@
+name: One-time stale branch cleanup
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/branch-cleanup-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Delete retired branches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete explicitly retired branches
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branches=(
+          'branding/v1.0.2-canonical'
+          'docs/complete-feature-guide'
+          'docs/hacs-install-update'
+          'feature/chat-images-1.5.0'
+          'feature/home-assistant-native-pairing'
+          'feature/image-notifications'
+          'feature/server-channel-selection'
+          'maintenance/repo-docs-2026-09-29'
+          'rebrand/monita-home-assistant'
+          'release/v1.0.0-rc1'
+          'release/1.0-hardening'
+          'v0.2.0'
+          )
+
+          for branch in "${branches[@]}"; do
+            if git ls-remote --exit-code --heads origin "refs/heads/${branch}" >/dev/null 2>&1; then
+              echo "Deleting ${branch}"
+              git push origin --delete "${branch}"
+            else
+              echo "Already absent: ${branch}"
+            fi
+          done
