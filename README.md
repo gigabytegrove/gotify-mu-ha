@@ -11,6 +11,16 @@ A Home Assistant custom integration for **Monita**, the successor to Gotify-MU. 
 
 It provides native Home Assistant notification entities for Monita Channels, image notifications, optional realtime inbound Channel messages, and an authenticated native event bridge for two-way automations.
 
+## Current release
+
+**Monita for Home Assistant 1.5.0** is the current integration release documented by this repository.
+
+It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.1.8**). Direct camera/image delivery into Monita Chat Channels requires **Monita 1.1.7 or newer**; older compatible servers continue to use the supported legacy/application-token paths where documented.
+
+Companion client:
+
+- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current phone-test milestone: **0.3.11**
+
 ## Documentation
 
 - **[Complete Feature & Usage Guide](docs/FEATURES.md)** — configuration, every supported feature, image-notification behavior, examples, security, troubleshooting-oriented health information, and credential requirements.
