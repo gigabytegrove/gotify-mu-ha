@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.7.0 - 2026-09-30
+
+### Message controls
+
+- Added a **Message controls** multi-select to `monita.send`.
+- Each message can independently enable **Assign to Me**, **Resolve / Reopen**, and **Attach files or images**.
+- Selected controls are carried in the Monita-native `monita::messageControls` extra for server-side enforcement.
+
+### Image delivery
+
+- Image sends now refresh Monita capability discovery when the cached Home Assistant config-entry state does not advertise the required image feature.
+- A Monita server upgraded while Home Assistant remains running can therefore begin receiving Notification/Chat images without requiring the integration to be reloaded first.
+- Existing camera/image capture, priority, Markdown, title, Channel targeting, and text fallback behavior remain intact.
+
+### Compatibility
+
+- Existing `monita.send` automations remain valid; message controls are opt-in.
+- The historical Home Assistant compatibility service alias remains available for existing automations.
+
 ## 1.6.0 - 2026-09-30
 
 ### Monita-native automation namespace
