@@ -21,6 +21,7 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.service import async_set_service_schema
 
 from .api import (
     GotifyMUAuthError,
@@ -77,6 +78,78 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("extras"): dict,
     }
 )
+
+MONITA_SEND_DESCRIPTION: dict[str, Any] = {
+    "name": "Send to Monita Channel",
+    "description": "Send a notification, message, or image to a selected Monita Channel.",
+    "fields": {
+        "channel": {
+            "name": "Channel",
+            "description": "Choose the Monita Channel that should receive this message.",
+            "required": False,
+            "selector": {
+                "entity": {
+                    "domain": "notify",
+                    "integration": DOMAIN,
+                }
+            },
+        },
+        "title": {
+            "name": "Title",
+            "required": False,
+            "selector": {"text": {}},
+        },
+        "message": {
+            "name": "Message",
+            "required": True,
+            "selector": {"text": {"multiline": True}},
+        },
+        "priority": {
+            "name": "Priority",
+            "description": "Monita priority from 0 through 10.",
+            "required": False,
+            "selector": {
+                "number": {
+                    "min": 0,
+                    "max": 10,
+                    "step": 1,
+                    "mode": "slider",
+                }
+            },
+        },
+        "markdown": {
+            "name": "Markdown",
+            "description": "Render the message as Markdown on supported Monita clients.",
+            "required": False,
+            "default": False,
+            "selector": {"boolean": {}},
+        },
+        "image_entity": {
+            "name": "Image entity",
+            "description": (
+                "Capture a current Home Assistant camera/image and send the bytes "
+                "to the selected Monita Channel."
+            ),
+            "required": False,
+            "selector": {"entity": {"domain": ["camera", "image"]}},
+        },
+        "image_url": {
+            "name": "Image URL",
+            "description": (
+                "Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant "
+                "and send it to Monita."
+            ),
+            "required": False,
+            "selector": {"text": {"type": "url"}},
+        },
+        "extras": {
+            "name": "Monita extras",
+            "description": "Optional advanced Monita message extras.",
+            "required": False,
+            "selector": {"object": {}},
+        },
+    },
+}
 
 MessageCallback = Callable[[dict[str, Any]], None]
 StatusCallback = Callable[[], None]
@@ -508,6 +581,17 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 handle_send,
                 schema=SERVICE_SCHEMA,
             )
+
+    # The canonical Monita action lives outside the historical config-entry
+    # domain, so register its frontend description explicitly. This keeps the
+    # automation editor fully native: Channel picker, title, priority, image
+    # entity, and the rest of the Monita fields all render under monita.send.
+    async_set_service_schema(
+        hass,
+        SERVICE_DOMAIN,
+        SERVICE_SEND,
+        MONITA_SEND_DESCRIPTION,
+    )
     return True
 
 
