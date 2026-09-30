@@ -54,6 +54,21 @@ send:
       selector:
         text:
           type: url
+    controls:
+      name: Message controls
+      description: Choose which collaboration controls this message exposes in Monita. Leave empty for a normal notification.
+      required: false
+      default: []
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Assign to Me
+              value: assign
+            - label: Resolve
+              value: resolve
+            - label: Attach
+              value: attach
     extras:
       name: Monita extras
       description: Optional advanced Monita extras. The Home Assistant origin marker is merged into these values.
