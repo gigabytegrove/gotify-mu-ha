@@ -147,7 +147,8 @@ async def test_server_notify_entity_routes_with_client_token_channel_id():
                 "entry_id": ENTRY_ID,
                 "channel_id": 8,
                 "source": "monita-ha",
-            }
+            },
+            "monita::controls": ["assign", "resolve", "attach"],
         },
         channel_id=8,
     )
@@ -184,6 +185,7 @@ async def test_push_message_supports_priority_markdown_and_channel_selection(has
                 "message": "**High temperature**",
                 "priority": 9,
                 "markdown": True,
+                "controls": ["assign", "resolve", "attach"],
             },
             blocking=True,
         )
