@@ -50,6 +50,8 @@ from .const import (
     INTEGRATION_ORIGIN_EXTRA,
     LEGACY_INTEGRATION_ORIGIN_EXTRA,
     LEGACY_SERVICE_DOMAIN,
+    MESSAGE_CONTROLS,
+    MESSAGE_CONTROLS_EXTRA,
     PLATFORMS,
     SERVICE_DOMAIN,
     SERVICE_SEND,
@@ -75,6 +77,10 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("entry_id"): cv.string,
         vol.Exclusive("image_entity", "image_source"): cv.entity_id,
         vol.Exclusive("image_url", "image_source"): cv.string,
+        vol.Optional("controls"): vol.All(
+            cv.ensure_list,
+            [vol.In(MESSAGE_CONTROLS)],
+        ),
         vol.Optional("extras"): dict,
     }
 )
@@ -141,6 +147,24 @@ MONITA_SEND_DESCRIPTION: dict[str, Any] = {
             ),
             "required": False,
             "selector": {"text": {"type": "url"}},
+        },
+        "controls": {
+            "name": "Message controls",
+            "description": (
+                "Choose which optional controls this individual message exposes "
+                "to recipients."
+            ),
+            "required": False,
+            "selector": {
+                "select": {
+                    "multiple": True,
+                    "options": [
+                        {"label": "Assign to Me", "value": "assign"},
+                        {"label": "Resolve / Reopen", "value": "resolve"},
+                        {"label": "Attach files or images", "value": "attach"},
+                    ],
+                }
+            },
         },
         "extras": {
             "name": "Monita extras",
@@ -448,6 +472,13 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         )
         extras[INTEGRATION_ORIGIN_EXTRA] = origin
 
+        if "controls" in call.data:
+            controls = list(dict.fromkeys(call.data.get("controls") or []))
+            if controls:
+                extras[MESSAGE_CONTROLS_EXTRA] = controls
+            else:
+                extras.pop(MESSAGE_CONTROLS_EXTRA, None)
+
         use_client_route = bool(runtime.client.client_token)
         legacy_image_route = bool(
             runtime.client.app_token
@@ -478,18 +509,27 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                         if channel is not None and channel.channel_type
                         else "notification"
                     )
+                    capability_name = (
+                        "chatImages" if channel_type == "chat" else "notificationImages"
+                    )
+                    if not (
+                        isinstance(features, dict)
+                        and features.get(capability_name) is True
+                    ):
+                        # A Monita server may have been upgraded since this HA
+                        # config entry loaded. Refresh capability discovery before
+                        # dropping an explicitly requested image.
+                        try:
+                            runtime.capabilities = await runtime.client.async_capabilities()
+                            features = runtime.capabilities.get("features", {})
+                        except GotifyMUError as err:
+                            _LOGGER.debug(
+                                "Could not refresh Monita capabilities before image send: %s",
+                                err,
+                            )
                     direct_images_supported = bool(
                         isinstance(features, dict)
-                        and (
-                            (
-                                channel_type == "chat"
-                                and features.get("chatImages") is True
-                            )
-                            or (
-                                channel_type != "chat"
-                                and features.get("notificationImages") is True
-                            )
-                        )
+                        and features.get(capability_name) is True
                     )
                     if direct_images_supported:
                         direct_extras = dict(extras)
