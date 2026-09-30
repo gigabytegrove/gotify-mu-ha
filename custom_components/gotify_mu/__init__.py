@@ -448,27 +448,28 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                     )
                     image = None
 
-                try:
-                    attachment = await runtime.client.async_upload_image(
-                        image.content,
-                        filename=image.filename,
-                        content_type=image.content_type,
-                    )
-                except GotifyMUAuthError:
-                    raise
-                except GotifyMURateLimitError as err:
-                    raise HomeAssistantError(
-                        "Monita rate limited the image upload"
-                    ) from err
-                except GotifyMUConnectionError as err:
-                    raise HomeAssistantError(
-                        "Could not connect to Monita media endpoint"
-                    ) from err
-                except GotifyMUError as err:
-                    raise HomeAssistantError(
-                        f"Monita rejected the image: {err}"
-                    ) from err
-                attachment_ids = [attachment.id]
+                if image is not None:
+                    try:
+                        attachment = await runtime.client.async_upload_image(
+                            image.content,
+                            filename=image.filename,
+                            content_type=image.content_type,
+                        )
+                    except GotifyMUAuthError:
+                        raise
+                    except GotifyMURateLimitError as err:
+                        raise HomeAssistantError(
+                            "Monita rate limited the image upload"
+                        ) from err
+                    except GotifyMUConnectionError as err:
+                        raise HomeAssistantError(
+                            "Could not connect to Monita media endpoint"
+                        ) from err
+                    except GotifyMUError as err:
+                        raise HomeAssistantError(
+                            f"Monita rejected the image: {err}"
+                        ) from err
+                    attachment_ids = [attachment.id]
 
             send_kwargs: dict[str, Any] = {
                 "title": call.data.get("title"),
