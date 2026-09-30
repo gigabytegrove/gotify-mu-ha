@@ -25,12 +25,12 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import (
-    GotifyMUAuthError,
-    GotifyMUChannel,
-    GotifyMUClient,
-    GotifyMUConnectionError,
-    GotifyMUError,
-    GotifyMURateLimitError,
+    MonitaAuthError,
+    MonitaChannel,
+    MonitaClient,
+    MonitaConnectionError,
+    MonitaError,
+    MonitaRateLimitError,
 )
 from .const import (
     CONF_APP_TOKEN,
@@ -55,7 +55,7 @@ from .const import (
 )
 from .helpers import normalize_server_url, server_unique_id
 from .native import (
-    GotifyMUNativePairingError,
+    MonitaNativePairingError,
     PendingNativeWebhook,
     async_pair_native,
     async_revoke_native,
@@ -66,7 +66,7 @@ from .native import (
 from .repairs import async_delete_native_bridge_repair_issue
 
 
-def _channel_selector_options(channels: list[GotifyMUChannel]) -> list[dict[str, str]]:
+def _channel_selector_options(channels: list[MonitaChannel]) -> list[dict[str, str]]:
     """Build readable Channel choices for Home Assistant selectors."""
     result: list[dict[str, str]] = []
     for channel in channels:
@@ -87,7 +87,7 @@ def _server_title(server_url: str) -> str:
     return f"Monita — {host}"
 
 
-class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class MonitaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Monita."""
 
     VERSION = 3
@@ -96,7 +96,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize flow state."""
         self._pending: dict[str, Any] | None = None
-        self._channels: list[GotifyMUChannel] = []
+        self._channels: list[MonitaChannel] = []
 
     async def _async_validate_server(
         self,
@@ -104,9 +104,9 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         server_url: str,
         client_token: str,
         verify_ssl: bool,
-    ) -> tuple[GotifyMUClient, dict[str, Any], list[GotifyMUChannel]]:
+    ) -> tuple[MonitaClient, dict[str, Any], list[MonitaChannel]]:
         """Validate one server credential and discover accessible Channels."""
-        client = GotifyMUClient(
+        client = MonitaClient(
             async_get_clientsession(self.hass),
             server_url,
             "",
@@ -125,9 +125,9 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         app_token: str,
         client_token: str | None,
         verify_ssl: bool,
-    ) -> tuple[GotifyMUClient, GotifyMUChannel | None, list[GotifyMUChannel]]:
+    ) -> tuple[MonitaClient, MonitaChannel | None, list[MonitaChannel]]:
         """Validate a pre-v3 per-Channel entry without changing its credentials."""
-        client = GotifyMUClient(
+        client = MonitaClient(
             async_get_clientsession(self.hass),
             server_url,
             app_token,
@@ -136,7 +136,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         await client.async_health()
         application = await client.async_validate_application_token()
-        channels: list[GotifyMUChannel] = []
+        channels: list[MonitaChannel] = []
         if client_token:
             await client.async_validate_client_token()
             channels = await client.async_get_channels()
@@ -154,7 +154,7 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 client_token = user_input[CONF_CLIENT_TOKEN].strip()
                 verify_ssl = user_input[CONF_VERIFY_SSL]
                 if not client_token:
-                    raise GotifyMUAuthError("Client token is empty")
+                    raise MonitaAuthError("Client token is empty")
 
                 _, _, channels = await self._async_validate_server(
                     server_url=server_url,
@@ -165,11 +165,11 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "no_channels"
             except ValueError:
                 errors["base"] = "invalid_url"
-            except GotifyMUAuthError:
+            except MonitaAuthError:
                 errors["base"] = "invalid_auth"
-            except GotifyMURateLimitError:
+            except MonitaRateLimitError:
                 errors["base"] = "rate_limited"
-            except (GotifyMUConnectionError, GotifyMUError):
+            except (MonitaConnectionError, MonitaError):
                 errors["base"] = "cannot_connect"
             else:
                 if not errors:
@@ -269,11 +269,11 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         client_token=client_token,
                         verify_ssl=entry.data.get(CONF_VERIFY_SSL, True),
                     )
-                except GotifyMUAuthError:
+                except MonitaAuthError:
                     errors["base"] = "invalid_auth"
-                except GotifyMURateLimitError:
+                except MonitaRateLimitError:
                     errors["base"] = "rate_limited"
-                except (GotifyMUConnectionError, GotifyMUError):
+                except (MonitaConnectionError, MonitaError):
                     errors["base"] = "cannot_connect"
                 else:
                     data = dict(entry.data)
@@ -342,11 +342,11 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ):
                     errors["base"] = "channel_not_accessible"
-            except GotifyMUAuthError:
+            except MonitaAuthError:
                 errors["base"] = "invalid_auth"
-            except GotifyMURateLimitError:
+            except MonitaRateLimitError:
                 errors["base"] = "rate_limited"
-            except (GotifyMUConnectionError, GotifyMUError):
+            except (MonitaConnectionError, MonitaError):
                 errors["base"] = "cannot_connect"
             else:
                 if not errors:
@@ -411,11 +411,11 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 except ValueError:
                     errors["base"] = "invalid_url"
-                except GotifyMUAuthError:
+                except MonitaAuthError:
                     errors["base"] = "invalid_auth"
-                except GotifyMURateLimitError:
+                except MonitaRateLimitError:
                     errors["base"] = "rate_limited"
-                except (GotifyMUConnectionError, GotifyMUError):
+                except (MonitaConnectionError, MonitaError):
                     errors["base"] = "cannot_connect"
                 else:
                     data = dict(entry.data)
@@ -502,11 +502,11 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "channel_not_accessible"
             except ValueError:
                 errors["base"] = "invalid_url"
-            except GotifyMUAuthError:
+            except MonitaAuthError:
                 errors["base"] = "invalid_auth"
-            except GotifyMURateLimitError:
+            except MonitaRateLimitError:
                 errors["base"] = "rate_limited"
-            except (GotifyMUConnectionError, GotifyMUError):
+            except (MonitaConnectionError, MonitaError):
                 errors["base"] = "cannot_connect"
             else:
                 if not errors:
@@ -570,12 +570,12 @@ class GotifyMUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry: ConfigEntry) -> GotifyMUOptionsFlow:
+    def async_get_options_flow(config_entry: ConfigEntry) -> MonitaOptionsFlow:
         """Create the options flow."""
-        return GotifyMUOptionsFlow()
+        return MonitaOptionsFlow()
 
 
-class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
+class MonitaOptionsFlow(config_entries.OptionsFlowWithReload):
     """Handle Monita options and native pairing."""
 
     async def async_step_init(
@@ -606,9 +606,9 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
             return self.async_abort(reason="client_token_required")
 
         errors: dict[str, str] = {}
-        channels: list[GotifyMUChannel] = []
+        channels: list[MonitaChannel] = []
         try:
-            client = GotifyMUClient(
+            client = MonitaClient(
                 async_get_clientsession(self.hass),
                 self.config_entry.data[CONF_SERVER_URL],
                 self.config_entry.data.get(CONF_APP_TOKEN, ""),
@@ -618,11 +618,11 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
             await client.async_health()
             await client.async_validate_client_token()
             channels = await client.async_get_channels()
-        except GotifyMUAuthError:
+        except MonitaAuthError:
             errors["base"] = "invalid_auth"
-        except GotifyMURateLimitError:
+        except MonitaRateLimitError:
             errors["base"] = "rate_limited"
-        except (GotifyMUConnectionError, GotifyMUError):
+        except (MonitaConnectionError, MonitaError):
             errors["base"] = "cannot_connect"
 
         if user_input is not None and not errors:
@@ -794,7 +794,7 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
                         pending.async_unregister()
                 except ValueError:
                     errors["base"] = "invalid_ha_url"
-                except GotifyMUNativePairingError as err:
+                except MonitaNativePairingError as err:
                     errors["base"] = err.reason
                 else:
                     self.hass.config_entries.async_schedule_reload(
@@ -849,7 +849,7 @@ class GotifyMUOptionsFlow(config_entries.OptionsFlowWithReload):
             except (KeyError, TypeError, ValueError):
                 if not force_local:
                     errors["base"] = "unpair_failed"
-            except GotifyMUNativePairingError as err:
+            except MonitaNativePairingError as err:
                 if not force_local:
                     errors["base"] = err.reason
 
