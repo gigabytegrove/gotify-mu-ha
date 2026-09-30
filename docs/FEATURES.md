@@ -17,7 +17,7 @@ Monita for Home Assistant is the successor name for **Gotify-MU for Home Assista
 For compatibility, existing YAML and stored objects continue to use:
 
 - `gotify_mu` as the Home Assistant integration domain
-- `gotify_mu.send` as the Push Message action ID
+- `monita.send` as the Push Message action ID
 - `custom_components/gotify_mu` as the custom component directory
 - `homeassistant::gotify_mu` as the existing origin-extra namespace used for loop prevention
 
@@ -136,11 +136,11 @@ Priority range: 0 through 10. The default is 5.
 
 ---
 
-## 4. Push Message action (`gotify_mu.send`)
+## 4. Push Message action (`monita.send`)
 
 The Home Assistant action picker presents this as **Push Message**.
 
-The technical action ID remains `gotify_mu.send` so existing automations continue working.
+The technical action ID remains `monita.send` so existing automations continue working.
 
 Supported fields:
 
@@ -164,7 +164,7 @@ When a server exposes more than one Channel, choose **Channel** in the action ed
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       channel: notify.security
       title: "Security"
@@ -175,7 +175,7 @@ action:
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       channel: notify.greenhouse
       title: "Greenhouse"
@@ -245,7 +245,7 @@ For a live camera frame, use `image_entity` with a `camera.*` entity.
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Front Door"
       message: "Someone is at the door."
@@ -268,7 +268,7 @@ Use this for:
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Doorbell"
       message: "Person detected."
@@ -293,7 +293,7 @@ The same field supports current Home Assistant image entities.
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Latest Snapshot"
       message: "A new snapshot is available."
@@ -310,7 +310,7 @@ Use `image_url` when the source is an HTTP or HTTPS image.
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Driveway"
       message: "Motion detected."
@@ -612,7 +612,7 @@ Repairing native pairing does not delete or replace:
 - the Monita server/client credential
 - selected Channels
 - Channel notify entities
-- the **Push Message** action (`gotify_mu.send`)
+- the **Push Message** action (`monita.send`)
 - legacy application-token credentials on upgraded per-Channel entries
 - the normal Monita config entry
 
@@ -833,7 +833,7 @@ action:
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       channel: notify.server_alerts
       title: "Server Alert"
@@ -845,7 +845,7 @@ action:
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       channel: notify.greenhouse
       title: "Daily Status"
@@ -869,7 +869,7 @@ Until the server-centric staged-upload contract is available, existing applicati
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Front Door"
       message: "Person detected."
