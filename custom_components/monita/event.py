@@ -9,22 +9,22 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import GotifyMUConfigEntry
+from . import MonitaConfigEntry
 from .const import CONF_SERVER_URL, DOMAIN, EVENT_TYPE_MESSAGE
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GotifyMUConfigEntry,
+    entry: MonitaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Monita inbound-message event entity."""
     if not entry.runtime_data.inbound_enabled:
         return
-    async_add_entities([GotifyMUMessageEventEntity(entry)])
+    async_add_entities([MonitaMessageEventEntity(entry)])
 
 
-class GotifyMUMessageEventEntity(EventEntity):
+class MonitaMessageEventEntity(EventEntity):
     """Expose inbound Monita messages as Home Assistant events."""
 
     _attr_has_entity_name = True
@@ -32,7 +32,7 @@ class GotifyMUMessageEventEntity(EventEntity):
     _attr_icon = "mdi:message-arrow-left"
     _attr_translation_key = "messages"
 
-    def __init__(self, entry: GotifyMUConfigEntry) -> None:
+    def __init__(self, entry: MonitaConfigEntry) -> None:
         """Initialize the event entity."""
         self._entry = entry
         self._attr_unique_id = f"{entry.unique_id}_message_event"
