@@ -40,5 +40,7 @@ EVENT_TYPE_MESSAGE = "message"
 
 INTEGRATION_ORIGIN_EXTRA = "homeassistant::monita"
 LEGACY_INTEGRATION_ORIGIN_EXTRA = "homeassistant::gotify_mu"
+MESSAGE_CONTROLS_EXTRA = "monita::messageControls"
+MESSAGE_CONTROLS = ("assign", "resolve", "attach")
 REQUEST_TIMEOUT_SECONDS = 10
 STREAM_RECONNECT_MAX_SECONDS = 60
