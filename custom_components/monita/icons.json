@@ -1,0 +1,27 @@
+{
+  "services": {
+    "send": {
+      "service": "mdi:message-arrow-right"
+    }
+  },
+  "entity": {
+    "notify": {
+      "notifications": {
+        "default": "mdi:message-badge"
+      }
+    },
+    "event": {
+      "messages": {
+        "default": "mdi:message-arrow-left"
+      }
+    },
+    "binary_sensor": {
+      "inbound_connection": {
+        "default": "mdi:lan-connect"
+      },
+      "native_bridge": {
+        "default": "mdi:lan-check"
+      }
+    }
+  }
+}
