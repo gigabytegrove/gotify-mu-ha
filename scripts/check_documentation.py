@@ -18,7 +18,7 @@ REQUIRED_GUIDE_MARKERS = (
     "Legacy per-Channel entries",
     "Multiple Channels and Manage Channels",
     "Standard Home Assistant notify entities",
-    "Push Message action (`gotify_mu.send`)",
+    "Push Message action (`monita.send`)",
     "Image notifications",
     "Realtime inbound Channel messages",
     "Messages event entity",
@@ -39,7 +39,7 @@ REQUIRED_GUIDE_MARKERS = (
 
 
 def _service_fields(text: str) -> set[str]:
-    """Return top-level fields exposed by gotify_mu.send in services.yaml."""
+    """Return top-level fields exposed by the Monita send action in services.yaml."""
     fields: set[str] = set()
     in_fields = False
     for line in text.splitlines():
@@ -85,7 +85,7 @@ def main() -> None:
     for field in sorted(_service_fields(services)):
         if f"`{field}`" not in guide:
             errors.append(
-                f"Feature guide does not document gotify_mu.send field: {field}"
+                f"Feature guide does not document monita.send field: {field}"
             )
 
     guide_lower = guide.lower()
