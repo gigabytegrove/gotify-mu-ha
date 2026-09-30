@@ -9,32 +9,32 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import GotifyMUConfigEntry
+from . import MonitaConfigEntry
 from .const import CONF_SERVER_URL, DOMAIN
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GotifyMUConfigEntry,
+    entry: MonitaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Monita connection status entities."""
     entities: list[BinarySensorEntity] = []
     if entry.runtime_data.inbound_enabled:
-        entities.append(GotifyMUConnectionBinarySensor(entry))
+        entities.append(MonitaConnectionBinarySensor(entry))
     if entry.runtime_data.native_bridge is not None:
-        entities.append(GotifyMUNativeBridgeBinarySensor(entry))
+        entities.append(MonitaNativeBridgeBinarySensor(entry))
     if entities:
         async_add_entities(entities)
 
 
-class _GotifyMUBaseConnectionSensor(BinarySensorEntity):
+class _MonitaBaseConnectionSensor(BinarySensorEntity):
     """Shared Monita connection sensor device metadata."""
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
-    def __init__(self, entry: GotifyMUConfigEntry) -> None:
+    def __init__(self, entry: MonitaConfigEntry) -> None:
         self._entry = entry
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
@@ -45,12 +45,12 @@ class _GotifyMUBaseConnectionSensor(BinarySensorEntity):
         )
 
 
-class GotifyMUConnectionBinarySensor(_GotifyMUBaseConnectionSensor):
+class MonitaConnectionBinarySensor(_MonitaBaseConnectionSensor):
     """Represent the realtime inbound stream connection state."""
 
     _attr_translation_key = "inbound_connection"
 
-    def __init__(self, entry: GotifyMUConfigEntry) -> None:
+    def __init__(self, entry: MonitaConfigEntry) -> None:
         """Initialize the inbound stream entity."""
         super().__init__(entry)
         self._attr_unique_id = f"{entry.unique_id}_inbound_connection"
@@ -85,12 +85,12 @@ class GotifyMUConnectionBinarySensor(_GotifyMUBaseConnectionSensor):
         self.async_write_ha_state()
 
 
-class GotifyMUNativeBridgeBinarySensor(_GotifyMUBaseConnectionSensor):
+class MonitaNativeBridgeBinarySensor(_MonitaBaseConnectionSensor):
     """Represent native Monita bridge health."""
 
     _attr_translation_key = "native_bridge"
 
-    def __init__(self, entry: GotifyMUConfigEntry) -> None:
+    def __init__(self, entry: MonitaConfigEntry) -> None:
         """Initialize the native bridge entity."""
         super().__init__(entry)
         self._attr_unique_id = f"{entry.unique_id}_native_bridge"
