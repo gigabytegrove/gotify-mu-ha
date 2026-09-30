@@ -297,11 +297,13 @@ def _resolve_push_target(
     call: ServiceCall,
 ) -> tuple[GotifyMUConfigEntry, int]:
     """Resolve the selected server entry and destination Channel."""
-    loaded = [
-        entry
-        for entry in hass.config_entries.async_entries(DOMAIN)
-        if entry.state is ConfigEntryState.LOADED
-    ]
+    candidate_domains = tuple(dict.fromkeys((DOMAIN, SERVICE_DOMAIN, LEGACY_SERVICE_DOMAIN)))
+    loaded_by_id: dict[str, GotifyMUConfigEntry] = {}
+    for candidate_domain in candidate_domains:
+        for entry in hass.config_entries.async_entries(candidate_domain):
+            if entry.state is ConfigEntryState.LOADED:
+                loaded_by_id.setdefault(entry.entry_id, entry)
+    loaded = list(loaded_by_id.values())
     if not loaded:
         raise ServiceValidationError("No loaded Monita server is configured")
 
@@ -316,7 +318,7 @@ def _resolve_push_target(
         registry_entry = er.async_get(hass).async_get(channel_entity)
         if (
             registry_entry is None
-            or registry_entry.platform != DOMAIN
+            or registry_entry.platform not in candidate_domains
             or registry_entry.domain != "notify"
             or not registry_entry.config_entry_id
         ):
