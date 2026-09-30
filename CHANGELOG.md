@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.0 - 2026-09-30
+
+### Per-message controls
+
+- Added a Message controls multi-select to `monita.send`.
+- Home Assistant can enable Assign to Me, Resolve, and Attach independently for each message.
+- Messages without selected controls remain normal notifications without workflow buttons.
+
+### Image delivery
+
+- Refreshes Monita server capabilities before falling back to text-only when an image is requested, so an upgraded Monita server can accept images without first reloading the Home Assistant integration.
+- Camera/image entity delivery remains supported on Notification and Chat Channels.
+
 ## 1.6.0 - 2026-09-30
 
 ### Monita-native automation namespace
