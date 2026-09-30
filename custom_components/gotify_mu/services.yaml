@@ -54,6 +54,20 @@ send:
       selector:
         text:
           type: url
+    controls:
+      name: Message controls
+      description: Choose which optional controls this individual message exposes to recipients.
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Assign to Me
+              value: assign
+            - label: Resolve / Reopen
+              value: resolve
+            - label: Attach files or images
+              value: attach
     extras:
       name: Monita extras
       description: Optional advanced Monita extras. The Home Assistant origin marker is merged into these values.

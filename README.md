@@ -13,13 +13,13 @@ It provides native Home Assistant notification entities for Monita Channels, ima
 
 ## Current release
 
-**Monita for Home Assistant 1.5.1** is the current integration release documented by this repository.
+**Monita for Home Assistant 1.7.0** is the current integration release documented by this repository.
 
-It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.1.8**). Direct camera/image delivery into Monita Chat Channels requires **Monita 1.1.7 or newer**; older compatible servers continue to use the supported legacy/application-token paths where documented.
+It is designed for [Monita server](https://github.com/gigabytegrove/monita) **1.2.0**. Direct camera/image delivery into Notification and Chat Channels requires Monita 1.1.9 or newer; per-message Assign/Resolve/Attach controls require Monita 1.2.0.
 
 Companion client:
 
-- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current phone-test milestone: **0.3.11**
+- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current phone-test milestone: **0.3.12**
 
 ## Documentation
 
@@ -34,8 +34,8 @@ The README covers installation and the most common workflows. The complete guide
 - UI setup through **Settings → Devices & services**
 - No `configuration.yaml` changes required
 - Standard Home Assistant `notify` entity
-- **Push Message** action (`monita.send`) with Channel targeting, priority, Markdown, and advanced extras
-- Camera/image notifications that upload real image bytes to Monita for mobile and remote access, including direct delivery into Chat Channels on Monita 1.1.7+
+- **Push Message** action (`monita.send`) with Channel targeting, priority, Markdown, optional per-message controls, and advanced extras
+- Camera/image notifications that upload real image bytes to Monita for mobile and remote access, including direct delivery into Notification and Chat Channels
 - Exact application-token validation without creating a test notification
 - Stable Channel identity on current Monita servers
 - One Monita server connection can discover and expose multiple Channels through a client token
