@@ -47,7 +47,10 @@ from .const import (
     DEFAULT_PRIORITY,
     DOMAIN,
     INTEGRATION_ORIGIN_EXTRA,
+    LEGACY_INTEGRATION_ORIGIN_EXTRA,
+    LEGACY_SERVICE_DOMAIN,
     PLATFORMS,
+    SERVICE_DOMAIN,
     SERVICE_SEND,
     STREAM_RECONNECT_MAX_SECONDS,
 )
@@ -171,8 +174,11 @@ def _message_is_from_this_entry(entry_id: str, message: dict[str, Any]) -> bool:
     extras = message.get("extras")
     if not isinstance(extras, dict):
         return False
-    origin = extras.get(INTEGRATION_ORIGIN_EXTRA)
-    return isinstance(origin, dict) and origin.get("entry_id") == entry_id
+    for key in (INTEGRATION_ORIGIN_EXTRA, LEGACY_INTEGRATION_ORIGIN_EXTRA):
+        origin = extras.get(key)
+        if isinstance(origin, dict) and origin.get("entry_id") == entry_id:
+            return True
+    return False
 
 
 def _channel_id_from_notify_unique_id(
@@ -394,35 +400,53 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                     features = getattr(runtime, "capabilities", {}).get(
                         "features", {}
                     )
-                    chat_images_supported = bool(
-                        channel is not None
-                        and channel.channel_type == "chat"
-                        and isinstance(features, dict)
-                        and features.get("chatImages") is True
+                    channel_type = (
+                        channel.channel_type
+                        if channel is not None and channel.channel_type
+                        else "notification"
                     )
-                    if not chat_images_supported:
-                        raise HomeAssistantError(
-                            "This Monita server/Channel does not support direct "
-                            "Chat image messages. Update Monita and select a Chat Channel, "
-                            "or use a legacy Channel application-token entry for images."
+                    direct_images_supported = bool(
+                        isinstance(features, dict)
+                        and (
+                            (
+                                channel_type == "chat"
+                                and features.get("chatImages") is True
+                            )
+                            or (
+                                channel_type != "chat"
+                                and features.get("notificationImages") is True
+                            )
                         )
+                    )
+                    if direct_images_supported:
+                        direct_extras = dict(extras)
+                        if call.data.get("markdown", False):
+                            direct_extras.setdefault(
+                                "client::display",
+                                {"contentType": "text/markdown"},
+                            )
+                        await runtime.client.async_send_chat_image(
+                            call.data["message"],
+                            channel_id=target_channel_id,
+                            image=image.content,
+                            filename=image.filename,
+                            content_type=image.content_type,
+                            title=call.data.get("title"),
+                            priority=priority,
+                            extras=direct_extras,
+                        )
+                        return
 
-                    chat_extras = dict(extras)
-                    if call.data.get("markdown", False):
-                        chat_extras.setdefault(
-                            "client::display",
-                            {"contentType": "text/markdown"},
-                        )
-                    await runtime.client.async_send_chat_image(
-                        call.data["message"],
-                        channel_id=target_channel_id,
-                        image=image.content,
-                        filename=image.filename,
-                        content_type=image.content_type,
-                        priority=priority,
-                        extras=chat_extras,
+                    # Never lose an urgent notification just because an older
+                    # Monita server cannot accept images on this Channel type.
+                    # The text notification is still delivered. Monita 1.1.9+
+                    # advertises notificationImages and receives the snapshot.
+                    _LOGGER.warning(
+                        "Monita Channel %s does not advertise direct image support; "
+                        "sending the notification text without the requested image",
+                        target_channel_id,
                     )
-                    return
+                    image = None
 
                 try:
                     attachment = await runtime.client.async_upload_image(
@@ -472,12 +496,17 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         except GotifyMUError as err:
             raise HomeAssistantError(str(err)) from err
 
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SEND,
-        handle_send,
-        schema=SERVICE_SCHEMA,
-    )
+    # Monita is the canonical user-facing service namespace. The historical
+    # integration domain remains registered as a compatibility alias so
+    # existing automations keep working during the transition.
+    for service_domain in (SERVICE_DOMAIN, LEGACY_SERVICE_DOMAIN):
+        if not hass.services.has_service(service_domain, SERVICE_SEND):
+            hass.services.async_register(
+                service_domain,
+                SERVICE_SEND,
+                handle_send,
+                schema=SERVICE_SCHEMA,
+            )
     return True
 
 
