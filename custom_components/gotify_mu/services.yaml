@@ -1,6 +1,6 @@
 send:
   name: Push Message
-  description: Push a text, Markdown, or hosted image message to a selected Monita Channel.
+  description: Legacy compatibility description for Push Message. The canonical action namespace is monita.send.
   fields:
     channel:
       name: Channel
@@ -40,7 +40,7 @@ send:
         boolean:
     image_entity:
       name: Image entity
-      description: Capture a current Home Assistant camera/image and upload the bytes to Monita. Image staging remains available on Channel application-token connections.
+      description: Capture a current Home Assistant camera/image and send it to the selected Monita Channel. Monita 1.1.9+ supports direct images on Notification and Chat Channels; older servers still receive the text alert.
       required: false
       selector:
         entity:
