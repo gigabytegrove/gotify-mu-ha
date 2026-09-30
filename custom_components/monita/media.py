@@ -25,7 +25,7 @@ _SUPPORTED_CONTENT_TYPES = {
 
 
 @dataclass(frozen=True, slots=True)
-class GotifyMUImage:
+class MonitaImage:
     """Validated image ready to be staged on Monita."""
 
     content: bytes
@@ -98,7 +98,7 @@ async def _async_get_image_entity(hass: HomeAssistant, entity_id: str):
 async def async_acquire_entity_image(
     hass: HomeAssistant,
     entity_id: str,
-) -> GotifyMUImage:
+) -> MonitaImage:
     """Capture a current image from a camera or image entity."""
     domain, separator, object_id = entity_id.partition(".")
     if not separator or not object_id:
@@ -123,7 +123,7 @@ async def async_acquire_entity_image(
         raise HomeAssistantError("Could not retrieve image entity image") from err
 
     content, content_type = _validate_image(result.content, result.content_type)
-    return GotifyMUImage(
+    return MonitaImage(
         content=content,
         filename=_filename(object_id, content_type),
         content_type=content_type,
@@ -135,7 +135,7 @@ async def async_acquire_url_image(
     url: str,
     *,
     verify_ssl: bool = True,
-) -> GotifyMUImage:
+) -> MonitaImage:
     """Download and validate an HTTP(S) image without exposing its source URL."""
     parsed = urlsplit(url)
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
@@ -183,7 +183,7 @@ async def async_acquire_url_image(
         raise HomeAssistantError("Could not download image from URL") from None
 
     content, content_type = _validate_image(bytes(body), header_type)
-    return GotifyMUImage(
+    return MonitaImage(
         content=content,
         filename=_filename("remote-image", content_type),
         content_type=content_type,
