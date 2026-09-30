@@ -16,10 +16,10 @@ Monita for Home Assistant is the successor name for **Gotify-MU for Home Assista
 
 For compatibility, existing YAML and stored objects continue to use:
 
-- `gotify_mu` as the Home Assistant integration domain
-- `monita.send` as the Push Message action ID
-- `custom_components/gotify_mu` as the custom component directory
-- `homeassistant::gotify_mu` as the existing origin-extra namespace used for loop prevention
+- `monita` as the canonical Home Assistant integration domain
+- `monita.send` as the canonical Push Message action ID
+- `custom_components/monita` as the canonical custom component directory
+- the historical integration domain and `homeassistant::gotify_mu` origin marker only as compatibility inputs for installations created before the canonical Monita domain
 
 These identifiers are compatibility contracts, not the active product name.
 
@@ -140,7 +140,7 @@ Priority range: 0 through 10. The default is 5.
 
 The Home Assistant action picker presents this as **Push Message**.
 
-The technical action ID remains `monita.send` so existing automations continue working.
+The canonical action ID is `monita.send`. Existing installations created under the historical integration domain remain supported by the compatibility component.
 
 Supported fields:
 
