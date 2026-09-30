@@ -21,6 +21,7 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.service import async_set_service_schema
 
 from .api import (
     GotifyMUAuthError,
@@ -47,7 +48,10 @@ from .const import (
     DEFAULT_PRIORITY,
     DOMAIN,
     INTEGRATION_ORIGIN_EXTRA,
+    LEGACY_INTEGRATION_ORIGIN_EXTRA,
+    LEGACY_SERVICE_DOMAIN,
     PLATFORMS,
+    SERVICE_DOMAIN,
     SERVICE_SEND,
     STREAM_RECONNECT_MAX_SECONDS,
 )
@@ -74,6 +78,78 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("extras"): dict,
     }
 )
+
+MONITA_SEND_DESCRIPTION: dict[str, Any] = {
+    "name": "Send to Monita Channel",
+    "description": "Send a notification, message, or image to a selected Monita Channel.",
+    "fields": {
+        "channel": {
+            "name": "Channel",
+            "description": "Choose the Monita Channel that should receive this message.",
+            "required": False,
+            "selector": {
+                "entity": {
+                    "domain": "notify",
+                    "integration": DOMAIN,
+                }
+            },
+        },
+        "title": {
+            "name": "Title",
+            "required": False,
+            "selector": {"text": {}},
+        },
+        "message": {
+            "name": "Message",
+            "required": True,
+            "selector": {"text": {"multiline": True}},
+        },
+        "priority": {
+            "name": "Priority",
+            "description": "Monita priority from 0 through 10.",
+            "required": False,
+            "selector": {
+                "number": {
+                    "min": 0,
+                    "max": 10,
+                    "step": 1,
+                    "mode": "slider",
+                }
+            },
+        },
+        "markdown": {
+            "name": "Markdown",
+            "description": "Render the message as Markdown on supported Monita clients.",
+            "required": False,
+            "default": False,
+            "selector": {"boolean": {}},
+        },
+        "image_entity": {
+            "name": "Image entity",
+            "description": (
+                "Capture a current Home Assistant camera/image and send the bytes "
+                "to the selected Monita Channel."
+            ),
+            "required": False,
+            "selector": {"entity": {"domain": ["camera", "image"]}},
+        },
+        "image_url": {
+            "name": "Image URL",
+            "description": (
+                "Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant "
+                "and send it to Monita."
+            ),
+            "required": False,
+            "selector": {"text": {"type": "url"}},
+        },
+        "extras": {
+            "name": "Monita extras",
+            "description": "Optional advanced Monita message extras.",
+            "required": False,
+            "selector": {"object": {}},
+        },
+    },
+}
 
 MessageCallback = Callable[[dict[str, Any]], None]
 StatusCallback = Callable[[], None]
@@ -171,8 +247,11 @@ def _message_is_from_this_entry(entry_id: str, message: dict[str, Any]) -> bool:
     extras = message.get("extras")
     if not isinstance(extras, dict):
         return False
-    origin = extras.get(INTEGRATION_ORIGIN_EXTRA)
-    return isinstance(origin, dict) and origin.get("entry_id") == entry_id
+    for key in (INTEGRATION_ORIGIN_EXTRA, LEGACY_INTEGRATION_ORIGIN_EXTRA):
+        origin = extras.get(key)
+        if isinstance(origin, dict) and origin.get("entry_id") == entry_id:
+            return True
+    return False
 
 
 def _channel_id_from_notify_unique_id(
@@ -394,57 +473,76 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                     features = getattr(runtime, "capabilities", {}).get(
                         "features", {}
                     )
-                    chat_images_supported = bool(
-                        channel is not None
-                        and channel.channel_type == "chat"
-                        and isinstance(features, dict)
-                        and features.get("chatImages") is True
+                    channel_type = (
+                        channel.channel_type
+                        if channel is not None and channel.channel_type
+                        else "notification"
                     )
-                    if not chat_images_supported:
+                    direct_images_supported = bool(
+                        isinstance(features, dict)
+                        and (
+                            (
+                                channel_type == "chat"
+                                and features.get("chatImages") is True
+                            )
+                            or (
+                                channel_type != "chat"
+                                and features.get("notificationImages") is True
+                            )
+                        )
+                    )
+                    if direct_images_supported:
+                        direct_extras = dict(extras)
+                        if call.data.get("markdown", False):
+                            direct_extras.setdefault(
+                                "client::display",
+                                {"contentType": "text/markdown"},
+                            )
+                        await runtime.client.async_send_chat_image(
+                            call.data["message"],
+                            channel_id=target_channel_id,
+                            image=image.content,
+                            filename=image.filename,
+                            content_type=image.content_type,
+                            title=call.data.get("title"),
+                            priority=priority,
+                            extras=direct_extras,
+                        )
+                        return
+
+                    # Never lose an urgent notification just because an older
+                    # Monita server cannot accept images on this Channel type.
+                    # The text notification is still delivered. Monita 1.1.9+
+                    # advertises notificationImages and receives the snapshot.
+                    _LOGGER.warning(
+                        "Monita Channel %s does not advertise direct image support; "
+                        "sending the notification text without the requested image",
+                        target_channel_id,
+                    )
+                    image = None
+
+                if image is not None:
+                    try:
+                        attachment = await runtime.client.async_upload_image(
+                            image.content,
+                            filename=image.filename,
+                            content_type=image.content_type,
+                        )
+                    except GotifyMUAuthError:
+                        raise
+                    except GotifyMURateLimitError as err:
                         raise HomeAssistantError(
-                            "This Monita server/Channel does not support direct "
-                            "Chat image messages. Update Monita and select a Chat Channel, "
-                            "or use a legacy Channel application-token entry for images."
-                        )
-
-                    chat_extras = dict(extras)
-                    if call.data.get("markdown", False):
-                        chat_extras.setdefault(
-                            "client::display",
-                            {"contentType": "text/markdown"},
-                        )
-                    await runtime.client.async_send_chat_image(
-                        call.data["message"],
-                        channel_id=target_channel_id,
-                        image=image.content,
-                        filename=image.filename,
-                        content_type=image.content_type,
-                        priority=priority,
-                        extras=chat_extras,
-                    )
-                    return
-
-                try:
-                    attachment = await runtime.client.async_upload_image(
-                        image.content,
-                        filename=image.filename,
-                        content_type=image.content_type,
-                    )
-                except GotifyMUAuthError:
-                    raise
-                except GotifyMURateLimitError as err:
-                    raise HomeAssistantError(
-                        "Monita rate limited the image upload"
-                    ) from err
-                except GotifyMUConnectionError as err:
-                    raise HomeAssistantError(
-                        "Could not connect to Monita media endpoint"
-                    ) from err
-                except GotifyMUError as err:
-                    raise HomeAssistantError(
-                        f"Monita rejected the image: {err}"
-                    ) from err
-                attachment_ids = [attachment.id]
+                            "Monita rate limited the image upload"
+                        ) from err
+                    except GotifyMUConnectionError as err:
+                        raise HomeAssistantError(
+                            "Could not connect to Monita media endpoint"
+                        ) from err
+                    except GotifyMUError as err:
+                        raise HomeAssistantError(
+                            f"Monita rejected the image: {err}"
+                        ) from err
+                    attachment_ids = [attachment.id]
 
             send_kwargs: dict[str, Any] = {
                 "title": call.data.get("title"),
@@ -472,11 +570,27 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         except GotifyMUError as err:
             raise HomeAssistantError(str(err)) from err
 
-    hass.services.async_register(
-        DOMAIN,
+    # Monita is the canonical user-facing service namespace. The historical
+    # integration domain remains registered as a compatibility alias so
+    # existing automations keep working during the transition.
+    for service_domain in (SERVICE_DOMAIN, LEGACY_SERVICE_DOMAIN):
+        if not hass.services.has_service(service_domain, SERVICE_SEND):
+            hass.services.async_register(
+                service_domain,
+                SERVICE_SEND,
+                handle_send,
+                schema=SERVICE_SCHEMA,
+            )
+
+    # The canonical Monita action lives outside the historical config-entry
+    # domain, so register its frontend description explicitly. This keeps the
+    # automation editor fully native: Channel picker, title, priority, image
+    # entity, and the rest of the Monita fields all render under monita.send.
+    async_set_service_schema(
+        hass,
+        SERVICE_DOMAIN,
         SERVICE_SEND,
-        handle_send,
-        schema=SERVICE_SCHEMA,
+        MONITA_SEND_DESCRIPTION,
     )
     return True
 

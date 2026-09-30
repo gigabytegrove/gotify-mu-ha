@@ -24,7 +24,7 @@ The following technical identifiers are compatibility contracts and remain uncha
 | --- | --- | --- |
 | `gotify_mu` | Retained | Home Assistant integration domain and stored config-entry compatibility |
 | `custom_components/gotify_mu` | Retained | Prevents HACS/manual upgrades from becoming a second integration |
-| `gotify_mu.send` | Retained | Existing automations and scripts continue to run |
+| `monita.send` | Retained | Existing automations and scripts continue to run |
 | `homeassistant::gotify_mu` | Retained | Existing message-origin/loop-prevention contract |
 | Stored config entries | Retained | No delete/re-add process |
 | Entity unique IDs | Retained | Dashboards and automations keep their entity registry relationships |
@@ -39,7 +39,7 @@ This remains valid after the rebrand:
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Front Door"
       message: "Person detected."
@@ -47,7 +47,7 @@ action:
       image_entity: camera.front_door
 ```
 
-The Home Assistant action editor displays Monita branding even though the compatibility-safe action ID remains `gotify_mu.send`.
+The Home Assistant action editor displays Monita branding even though the compatibility-safe action ID remains `monita.send`.
 
 ## Server/API terminology
 

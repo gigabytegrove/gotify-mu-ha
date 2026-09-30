@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.6.0 - 2026-09-30
+
+### Monita-native automation namespace
+
+- Added `monita.send` as the canonical Home Assistant action for Monita automations.
+- Kept the historical integration service namespace as a compatibility alias so existing automations do not break during the transition.
+- New documentation and examples use Monita terminology and the `monita.send` action.
+
+### Notification Channel images
+
+- Added direct camera/image delivery to Monita Notification Channels when the server advertises `notificationImages` support (Monita 1.1.9+).
+- Preserved direct Chat image delivery through the existing `chatImages` capability.
+- Older Monita servers no longer cause the entire alert to fail when an image is requested for a Notification Channel; Home Assistant sends the text notification and logs that the image was omitted.
+- Image sends now preserve an explicit notification title through the multipart Monita image route.
+
+### Compatibility
+
+- Existing config entries, selected Channels, notification entities, native pairing, and stored credentials remain in place.
+- Existing automations using the historical service alias continue to work, while new automations should use `monita.send`.
+
 ## 1.5.1 - 2026-09-29
 
 ### Maintenance

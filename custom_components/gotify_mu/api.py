@@ -332,6 +332,7 @@ class GotifyMUClient:
         image: bytes,
         filename: str,
         content_type: str,
+        title: str | None = None,
         priority: int = 5,
         extras: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -345,6 +346,8 @@ class GotifyMUClient:
 
         form = FormData()
         form.add_field("message", message)
+        if title:
+            form.add_field("title", title)
         form.add_field("priority", str(priority))
         if extras:
             form.add_field(
