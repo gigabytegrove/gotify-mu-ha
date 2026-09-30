@@ -10,13 +10,13 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import GotifyMUConfigEntry
+from . import MonitaConfigEntry
 from .api import (
-    GotifyMUAuthError,
-    GotifyMUChannel,
-    GotifyMUConnectionError,
-    GotifyMUError,
-    GotifyMURateLimitError,
+    MonitaAuthError,
+    MonitaChannel,
+    MonitaConnectionError,
+    MonitaError,
+    MonitaRateLimitError,
 )
 from .const import (
     CONF_CHANNEL_ID,
@@ -30,19 +30,19 @@ from .const import (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: GotifyMUConfigEntry,
+    entry: MonitaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Expose one notification entity for every selected push-capable Channel."""
     runtime = entry.runtime_data
-    entities: list[GotifyMUNotifyEntity] = []
+    entities: list[MonitaNotifyEntity] = []
 
     for channel_id in runtime.active_channel_ids:
         channel = runtime.channel(channel_id)
         if channel is None:
             if channel_id != runtime.channel_id:
                 continue
-            channel = GotifyMUChannel(
+            channel = MonitaChannel(
                 id=channel_id,
                 name=runtime.channel_name,
                 role="owner",
@@ -61,7 +61,7 @@ async def async_setup_entry(
             continue
 
         entities.append(
-            GotifyMUNotifyEntity(
+            MonitaNotifyEntity(
                 entry,
                 channel,
                 use_legacy_app_token=legacy_app_channel,
@@ -72,7 +72,7 @@ async def async_setup_entry(
         async_add_entities(entities)
 
 
-class GotifyMUNotifyEntity(NotifyEntity):
+class MonitaNotifyEntity(NotifyEntity):
     """One Monita Channel exposed as a Home Assistant notify entity."""
 
     _attr_has_entity_name = True
@@ -81,8 +81,8 @@ class GotifyMUNotifyEntity(NotifyEntity):
 
     def __init__(
         self,
-        entry: GotifyMUConfigEntry,
-        channel: GotifyMUChannel,
+        entry: MonitaConfigEntry,
+        channel: MonitaChannel,
         *,
         use_legacy_app_token: bool = False,
     ) -> None:
@@ -160,12 +160,12 @@ class GotifyMUNotifyEntity(NotifyEntity):
                 message,
                 **kwargs,
             )
-        except GotifyMUAuthError as err:
+        except MonitaAuthError as err:
             self._entry.async_start_reauth(self.hass)
             raise HomeAssistantError("Monita rejected the configured credential") from err
-        except GotifyMURateLimitError as err:
+        except MonitaRateLimitError as err:
             raise HomeAssistantError("Monita rate limited the notification") from err
-        except GotifyMUConnectionError as err:
+        except MonitaConnectionError as err:
             raise HomeAssistantError(f"Could not connect to Monita: {err}") from err
-        except GotifyMUError as err:
+        except MonitaError as err:
             raise HomeAssistantError(str(err)) from err
