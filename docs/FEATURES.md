@@ -16,10 +16,10 @@ Monita for Home Assistant is the successor name for **Gotify-MU for Home Assista
 
 For compatibility, existing YAML and stored objects continue to use:
 
-- `gotify_mu` as the Home Assistant integration domain
-- `monita.send` as the Push Message action ID
-- `custom_components/gotify_mu` as the custom component directory
-- `homeassistant::gotify_mu` as the existing origin-extra namespace used for loop prevention
+- `monita` as the canonical Home Assistant integration domain
+- `monita.send` as the canonical Push Message action ID
+- `custom_components/monita` as the canonical custom component directory
+- the historical integration domain and `homeassistant::gotify_mu` origin marker only as compatibility inputs for installations created before the canonical Monita domain
 
 These identifiers are compatibility contracts, not the active product name.
 
@@ -140,7 +140,7 @@ Priority range: 0 through 10. The default is 5.
 
 The Home Assistant action picker presents this as **Push Message**.
 
-The technical action ID remains `monita.send` so existing automations continue working.
+The canonical action ID is `monita.send`. Existing installations created under the historical integration domain remain supported by the compatibility component.
 
 Supported fields:
 
@@ -154,6 +154,7 @@ Supported fields:
 | `entry_id` | No | Legacy/advanced server-entry targeting |
 | `image_entity` | No | Captures a current `camera.*` or `image.*` image |
 | `image_url` | No | Downloads an HTTP/HTTPS image inside Home Assistant |
+| `controls` | No | Per-message controls: `assign`, `resolve`, and/or `attach` |
 | `extras` | No | Advanced caller-supplied extras |
 
 `image_entity` and `image_url` are mutually exclusive.
@@ -183,6 +184,33 @@ action:
       priority: 8
       markdown: true
 ```
+
+### Message controls
+
+Normal Monita notifications do not expose workflow controls by default.
+
+Use `controls` when a specific message should allow one or more collaboration actions:
+
+```yaml
+action:
+  - action: monita.send
+    data:
+      channel: notify.important_notices
+      title: "Doorbell"
+      message: "Someone is at the back door."
+      controls:
+        - assign
+        - resolve
+        - attach
+```
+
+The available choices are:
+
+- `assign` — show **Assign to Me** and allow assignment changes.
+- `resolve` — show **Resolve** / reopen workflow state.
+- `attach` — show **Attach** and allow post-send attachments.
+
+The server enforces the same metadata. Omitting a control hides it in Monita and direct API calls for that control are rejected.
 
 ### Compatibility behavior
 
@@ -356,9 +384,11 @@ Supported image types:
 
 Text and Markdown Push Message publishing is fully server-centric and uses one client token plus the selected Channel ID.
 
-With **Monita 1.1.7 or newer**, Monita for Home Assistant 1.5.0 can send a captured/downloaded image directly into a selected **Chat Channel** when the server advertises the `chatImages` capability. The image is uploaded as an authenticated Chat attachment and stored with the Chat message.
+With **Monita 1.1.9 or newer**, Monita for Home Assistant can send captured/downloaded images directly into selected **Notification or Chat Channels** when the server advertises the corresponding image capability. The image is stored as an authenticated Monita message attachment and remains available to Web and Android clients.
 
-Legacy per-Channel application-token entries continue to use the staged attachment workflow. For server-centric entries, image delivery to unsupported servers or to Notification Channels without a supported image route fails clearly instead of silently sending a text-only message.
+The integration refreshes server capabilities before giving up on an image, so upgrading Monita does not require a Home Assistant integration reload just to discover Notification Channel image support.
+
+Legacy per-Channel application-token entries continue to use the staged attachment workflow. For older server-centric servers, image delivery without a supported image route fails clearly instead of silently sending a text-only message.
 
 The integration always checks the server capability and selected Channel type before choosing the direct Chat-image path.
 

@@ -24,12 +24,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service import async_set_service_schema
 
 from .api import (
-    GotifyMUAuthError,
-    GotifyMUChannel,
-    GotifyMUClient,
-    GotifyMUConnectionError,
-    GotifyMUError,
-    GotifyMURateLimitError,
+    MonitaAuthError,
+    MonitaChannel,
+    MonitaClient,
+    MonitaConnectionError,
+    MonitaError,
+    MonitaRateLimitError,
 )
 from .const import (
     CONF_APP_TOKEN,
@@ -57,7 +57,7 @@ from .const import (
 )
 from .helpers import channel_unique_id, fallback_unique_id
 from .media import async_acquire_entity_image, async_acquire_url_image
-from .native import GotifyMUNativeBridge, native_pairing_is_configured
+from .native import MonitaNativeBridge, native_pairing_is_configured
 from .repairs import async_delete_native_bridge_repair_issue
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -182,18 +182,18 @@ _CHANNEL_NOTIFY_UNIQUE_ID = re.compile(r"_channel_(\d+)_notify$")
 
 
 @dataclass(slots=True)
-class GotifyMURuntimeData:
+class MonitaRuntimeData:
     """Runtime data for one Monita server/config entry."""
 
-    client: GotifyMUClient
+    client: MonitaClient
     channel_id: int | None
     channel_name: str
     entry_id: str
     inbound_enabled: bool
-    channels: dict[int, GotifyMUChannel] = field(default_factory=dict)
+    channels: dict[int, MonitaChannel] = field(default_factory=dict)
     selected_channel_ids: tuple[int, ...] = ()
     capabilities: dict[str, Any] = field(default_factory=dict)
-    native_bridge: GotifyMUNativeBridge | None = None
+    native_bridge: MonitaNativeBridge | None = None
     stream_connected: bool = False
     stream_reconnects: int = 0
     last_stream_error: str | None = None
@@ -210,7 +210,7 @@ class GotifyMURuntimeData:
             return (self.channel_id,)
         return ()
 
-    def channel(self, channel_id: int) -> GotifyMUChannel | None:
+    def channel(self, channel_id: int) -> MonitaChannel | None:
         """Return metadata for one selected Channel."""
         return self.channels.get(channel_id)
 
@@ -264,7 +264,7 @@ class GotifyMURuntimeData:
         self.async_set_stream_status(False, self.last_stream_error)
 
 
-GotifyMUConfigEntry = ConfigEntry[GotifyMURuntimeData]
+MonitaConfigEntry = ConfigEntry[MonitaRuntimeData]
 
 
 def _message_is_from_this_entry(entry_id: str, message: dict[str, Any]) -> bool:
@@ -280,7 +280,7 @@ def _message_is_from_this_entry(entry_id: str, message: dict[str, Any]) -> bool:
 
 
 def _channel_id_from_notify_unique_id(
-    runtime: GotifyMURuntimeData,
+    runtime: MonitaRuntimeData,
     unique_id: str,
 ) -> int | None:
     """Resolve a Monita Channel from one notification entity unique ID."""
@@ -295,10 +295,10 @@ def _channel_id_from_notify_unique_id(
 def _resolve_push_target(
     hass: HomeAssistant,
     call: ServiceCall,
-) -> tuple[GotifyMUConfigEntry, int]:
+) -> tuple[MonitaConfigEntry, int]:
     """Resolve the selected server entry and destination Channel."""
     candidate_domains = tuple(dict.fromkeys((DOMAIN, SERVICE_DOMAIN, LEGACY_SERVICE_DOMAIN)))
-    loaded_by_id: dict[str, GotifyMUConfigEntry] = {}
+    loaded_by_id: dict[str, MonitaConfigEntry] = {}
     for candidate_domain in candidate_domains:
         for entry in hass.config_entries.async_entries(candidate_domain):
             if entry.state is ConfigEntryState.LOADED:
@@ -311,7 +311,7 @@ def _resolve_push_target(
     requested_entry_id = call.data.get("entry_id")
     requested_channel_id = call.data.get("channel_id")
 
-    selected: GotifyMUConfigEntry | None = None
+    selected: MonitaConfigEntry | None = None
     target_channel_id: int | None = None
 
     if channel_entity:
@@ -384,7 +384,7 @@ def _resolve_push_target(
 
 async def _async_stream_loop(
     hass: HomeAssistant,
-    entry: GotifyMUConfigEntry,
+    entry: MonitaConfigEntry,
 ) -> None:
     """Maintain the optional realtime Monita stream."""
     runtime = entry.runtime_data
@@ -422,14 +422,14 @@ async def _async_stream_loop(
                 runtime.async_set_stream_status(False, runtime.last_stream_error)
                 return
             runtime.async_set_stream_status(False, "WebSocket stream closed")
-        except GotifyMUAuthError as err:
+        except MonitaAuthError as err:
             runtime.async_set_stream_status(False, str(err))
             entry.async_start_reauth(hass)
             return
-        except GotifyMURateLimitError as err:
+        except MonitaRateLimitError as err:
             runtime.stream_reconnects += 1
             runtime.async_set_stream_status(False, str(err))
-        except GotifyMUConnectionError as err:
+        except MonitaConnectionError as err:
             runtime.stream_reconnects += 1
             runtime.async_set_stream_status(False, str(err))
             _LOGGER.debug(
@@ -589,17 +589,17 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                             filename=image.filename,
                             content_type=image.content_type,
                         )
-                    except GotifyMUAuthError:
+                    except MonitaAuthError:
                         raise
-                    except GotifyMURateLimitError as err:
+                    except MonitaRateLimitError as err:
                         raise HomeAssistantError(
                             "Monita rate limited the image upload"
                         ) from err
-                    except GotifyMUConnectionError as err:
+                    except MonitaConnectionError as err:
                         raise HomeAssistantError(
                             "Could not connect to Monita media endpoint"
                         ) from err
-                    except GotifyMUError as err:
+                    except MonitaError as err:
                         raise HomeAssistantError(
                             f"Monita rejected the image: {err}"
                         ) from err
@@ -621,14 +621,14 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 call.data["message"],
                 **send_kwargs,
             )
-        except GotifyMUAuthError as err:
+        except MonitaAuthError as err:
             selected.async_start_reauth(hass)
             raise HomeAssistantError("Monita rejected the configured credential") from err
-        except GotifyMURateLimitError as err:
+        except MonitaRateLimitError as err:
             raise HomeAssistantError("Monita rate limited the notification") from err
-        except GotifyMUConnectionError as err:
+        except MonitaConnectionError as err:
             raise HomeAssistantError(f"Could not connect to Monita: {err}") from err
-        except GotifyMUError as err:
+        except MonitaError as err:
             raise HomeAssistantError(str(err)) from err
 
     # Monita is the canonical user-facing service namespace. The historical
@@ -689,11 +689,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: MonitaConfigEntry) -> bool:
     """Set up one Monita server or legacy Channel entry."""
     app_token = entry.data.get(CONF_APP_TOKEN, "")
     client_token = entry.data.get(CONF_CLIENT_TOKEN)
-    client = GotifyMUClient(
+    client = MonitaClient(
         async_get_clientsession(hass),
         entry.data[CONF_SERVER_URL],
         app_token,
@@ -703,21 +703,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
 
     try:
         await client.async_health()
-        application: GotifyMUChannel | None = None
+        application: MonitaChannel | None = None
         if app_token:
             application = await client.async_validate_application_token()
 
-        channels: list[GotifyMUChannel] = []
+        channels: list[MonitaChannel] = []
         capabilities: dict[str, Any] = {}
         if client_token:
             await client.async_validate_client_token()
             channels = await client.async_get_channels()
             capabilities = await client.async_capabilities()
-    except GotifyMUAuthError as err:
+    except MonitaAuthError as err:
         raise ConfigEntryAuthFailed(str(err)) from err
-    except (GotifyMUConnectionError, GotifyMURateLimitError) as err:
+    except (MonitaConnectionError, MonitaRateLimitError) as err:
         raise ConfigEntryNotReady(str(err)) from err
-    except GotifyMUError as err:
+    except MonitaError as err:
         raise ConfigEntryNotReady(str(err)) from err
 
     data = dict(entry.data)
@@ -770,7 +770,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     if data != dict(entry.data):
         hass.config_entries.async_update_entry(entry, data=data)
 
-    runtime = GotifyMURuntimeData(
+    runtime = MonitaRuntimeData(
         client=client,
         channel_id=primary_channel_id,
         channel_name=primary_name,
@@ -787,7 +787,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     entry.async_on_unload(runtime.async_stop)
 
     if native_pairing_is_configured(data):
-        native_bridge = GotifyMUNativeBridge(
+        native_bridge = MonitaNativeBridge(
             hass,
             async_get_clientsession(hass),
             name=entry.title,
@@ -814,14 +814,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: GotifyMUConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: MonitaConfigEntry) -> bool:
     """Unload a Monita config entry."""
     entry.runtime_data.async_stop()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_remove_entry(
-    hass: HomeAssistant, entry: GotifyMUConfigEntry
+    hass: HomeAssistant, entry: MonitaConfigEntry
 ) -> None:
     """Clean up repair issues when a Monita entry is removed."""
     async_delete_native_bridge_repair_issue(hass, entry.entry_id)

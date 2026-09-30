@@ -1,0 +1,196 @@
+{
+  "title": "Monita for Home Assistant",
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Connect to Monita",
+        "description": "Connect Home Assistant to one Monita server. The client token is used to discover the Channels your account can access, then you choose which Channels Home Assistant should expose.",
+        "data": {
+          "server_url": "Server URL",
+          "client_token": "Client token",
+          "verify_ssl": "Verify TLS certificate"
+        },
+        "data_description": {
+          "server_url": "Base URL of the Monita server.",
+          "client_token": "Create a client in Monita under Clients → Create Client, then paste its token here. Home Assistant uses it for Channel discovery, inbound messages, and Push Message actions.",
+          "verify_ssl": "Disable only for a trusted private server using a self-signed or otherwise untrusted certificate."
+        }
+      },
+      "channel": {
+        "title": "Choose the Monita Channel",
+        "description": "This server does not expose application-token identity. If a client token was supplied, choose the Channel associated with the application token. Otherwise enter a display name.",
+        "data": {
+          "channel_id": "Channel",
+          "channel_name": "Channel name"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Monita",
+        "description": "The stored Monita credential is no longer accepted. Replace the credential used by this connection.",
+        "data": {
+          "app_token": "Application token",
+          "client_token": "Replacement client token",
+          "remove_client_token": "Remove stored client token"
+        },
+        "data_description": {
+          "client_token": "For server connections, enter a valid Monita client token. Legacy per-Channel entries may leave this blank to keep their existing client token.",
+          "remove_client_token": "Removes inbound/two-way access and disables the inbound stream."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Monita server",
+        "description": "Update the Monita server address, TLS behavior, or connection credential. Use Manage Channels to change which Channels Home Assistant exposes.",
+        "data": {
+          "server_url": "Server URL",
+          "channel_name": "Channel name",
+          "verify_ssl": "Verify TLS certificate",
+          "client_token": "Replacement client token (optional)",
+          "remove_client_token": "Remove stored client token"
+        },
+        "data_description": {
+          "client_token": "Leave blank to keep the existing client token.",
+          "remove_client_token": "Removes inbound/two-way access and disables the inbound stream."
+        }
+      },
+      "channels": {
+        "title": "Choose Channels",
+        "description": "Select every Monita Channel that should be available to Home Assistant. You can change this list later from Configure → Manage Channels.",
+        "data": {
+          "channel_ids": "Channels"
+        },
+        "data_description": {
+          "channel_ids": "Home Assistant creates notification entities for selected Channels that your Monita account is allowed to post to. Selected read-only Channels remain available to inbound message handling."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to Monita.",
+      "invalid_auth": "Monita rejected the supplied credentials.",
+      "invalid_url": "Enter a valid http:// or https:// Monita server URL.",
+      "rate_limited": "Monita rate limited the validation request. Try again shortly.",
+      "channel_not_accessible": "The supplied credential cannot access the currently selected Monita Channel(s).",
+      "wrong_channel": "The application token belongs to a different Monita Channel.",
+      "no_channels": "This Monita account cannot access any Channels.",
+      "select_channel": "Select at least one Monita Channel."
+    },
+    "abort": {
+      "already_configured": "This Monita server is already configured.",
+      "reauth_successful": "Monita authentication was updated successfully.",
+      "reconfigure_successful": "Monita was reconfigured successfully.",
+      "setup_state_lost": "Setup state was lost. Start the integration setup again.",
+      "channel_not_found": "The selected Monita Channel is no longer available.",
+      "unique_id_mismatch": "The supplied settings identify a different Monita Channel."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Monita options",
+        "description": "Native pairing status: {native_state}. Choose what you want to manage.",
+        "menu_options": {
+          "settings": "Notifications and inbound messages",
+          "native_pairing": "Native Home Assistant pairing",
+          "channels": "Manage Channels"
+        }
+      },
+      "settings": {
+        "title": "Monita options",
+        "description": "Control default Push Message priority and realtime inbound message handling for the selected Channels.",
+        "data": {
+          "default_priority": "Default priority",
+          "inbound_enabled": "Enable inbound messages"
+        },
+        "data_description": {
+          "default_priority": "Default Monita priority used by Channel notification entities.",
+          "inbound_enabled": "Maintain a Monita WebSocket connection and expose incoming Channel messages as a Home Assistant event entity."
+        }
+      },
+      "native_pairing": {
+        "title": "Native Home Assistant pairing",
+        "description": "Status: Paired. The native bridge can exchange Home Assistant events with Monita without a Home Assistant Long-Lived Access Token.",
+        "menu_options": {
+          "native_repair": "Repair pairing",
+          "native_remove": "Remove pairing"
+        }
+      },
+      "native_pair": {
+        "title": "Pair with Monita server",
+        "description": "Enter the one-time pairing code generated by Monita. The code expires after 15 minutes and can only be used once. Home Assistant detected {auto_url}; leave the Home Assistant URL blank to use it, or enter an override that Monita can reach.",
+        "data": {
+          "native_pairing_code": "Monita pairing code",
+          "home_assistant_url": "Home Assistant URL"
+        },
+        "data_description": {
+          "native_pairing_code": "One-time code in the form 12.random-secret.",
+          "home_assistant_url": "Optional callback base URL override. Leave blank to use Home Assistant's detected URL."
+        }
+      },
+      "native_remove": {
+        "title": "Remove native pairing",
+        "description": "Home Assistant will revoke the native bridge on Monita before removing its local credentials. The normal Monita notification integration remains configured.",
+        "data": {
+          "confirm": "Remove native pairing",
+          "force_local_remove": "Force local removal if remote revoke fails"
+        },
+        "data_description": {
+          "force_local_remove": "Recovery option only. This removes Home Assistant's local native credentials even if Monita cannot be reached or rejects the stored bridge secret."
+        }
+      },
+      "channels": {
+        "title": "Manage Channels",
+        "description": "Monita was queried live for the Channels this account can access. Select the Channels Home Assistant should expose. Reopen this screen whenever you add or remove Channels on the server.",
+        "data": {
+          "channel_ids": "Channels"
+        },
+        "data_description": {
+          "channel_ids": "Push-capable Channels receive a Home Assistant notification entity. Read-only Channels can still be included for inbound messages."
+        }
+      }
+    },
+    "error": {
+      "invalid_pairing_code": "The Monita pairing code is invalid or was already used.",
+      "pairing_expired": "The Monita pairing code has expired. Generate a new code in Monita.",
+      "pairing_failed": "Monita could not complete native pairing. Generate a new pairing code and try again.",
+      "invalid_ha_url": "Enter a valid http:// or https:// Home Assistant URL reachable by Monita.",
+      "cannot_connect": "Could not connect to Monita to complete native pairing.",
+      "rate_limited": "Monita rate limited the pairing request. Try again shortly.",
+      "unpair_auth_failed": "Monita rejected the stored native bridge credential. Repair pairing first, or use force local removal if the remote connection has already been replaced.",
+      "unpair_not_found": "Monita could not find the native bridge revoke endpoint or connection. Upgrade Monita, or use force local removal only if you have removed the remote connection separately.",
+      "cannot_unpair": "Could not reach Monita to revoke the native bridge. Try again, or use force local removal only if you will clean up the remote connection separately.",
+      "unpair_failed": "Monita could not revoke the native bridge."
+    }
+  },
+  "entity": {
+    "notify": {
+      "notifications": {
+        "name": "Notifications"
+      }
+    },
+    "event": {
+      "messages": {
+        "name": "Messages"
+      }
+    },
+    "binary_sensor": {
+      "inbound_connection": {
+        "name": "Inbound connection"
+      },
+      "native_bridge": {
+        "name": "Native bridge"
+      }
+    }
+  },
+  "services": {
+    "send": {
+      "name": "Push Message",
+      "description": "Push a text, Markdown, or hosted image message to a selected Monita Channel."
+    }
+  },
+  "issues": {
+    "native_bridge_auth_failed": {
+      "title": "Monita native bridge needs repair",
+      "description": "Monita rejected the stored native bridge credential for {name}. Open Settings → Devices & services → Monita, choose Configure → Native Home Assistant pairing → Repair pairing, generate a new one-time pairing code in Monita, and pair the connection again."
+    }
+  }
+}

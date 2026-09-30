@@ -22,10 +22,11 @@ The following technical identifiers are compatibility contracts and remain uncha
 
 | Existing identifier | 1.3.0 behavior | Why |
 | --- | --- | --- |
-| `gotify_mu` | Retained | Home Assistant integration domain and stored config-entry compatibility |
-| `custom_components/gotify_mu` | Retained | Prevents HACS/manual upgrades from becoming a second integration |
-| `monita.send` | Retained | Existing automations and scripts continue to run |
-| `homeassistant::gotify_mu` | Retained | Existing message-origin/loop-prevention contract |
+| `monita` | Canonical | Home Assistant integration domain for new installations |
+| `custom_components/monita` | Canonical | Active Monita custom component implementation |
+| `monita.send` | Canonical | Monita automation/action namespace |
+| historical integration domain | Compatibility only | Keeps config entries created before the canonical Monita domain loadable during migration |
+| `homeassistant::gotify_mu` | Compatibility only | Accepted only for historical loop-prevention metadata; new messages use `homeassistant::monita` |
 | Stored config entries | Retained | No delete/re-add process |
 | Entity unique IDs | Retained | Dashboards and automations keep their entity registry relationships |
 | Application/client tokens | Retained | No credential reset solely because of the rename |
@@ -47,7 +48,7 @@ action:
       image_entity: camera.front_door
 ```
 
-The Home Assistant action editor displays Monita branding even though the compatibility-safe action ID remains `monita.send`.
+The Home Assistant action editor and technical action ID are both Monita-native: `monita.send`. The historical integration domain is retained only for existing-install compatibility.
 
 ## Server/API terminology
 

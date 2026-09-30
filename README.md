@@ -13,13 +13,13 @@ It provides native Home Assistant notification entities for Monita Channels, ima
 
 ## Current release
 
-**Monita for Home Assistant 1.5.1** is the current integration release documented by this repository.
+**Monita for Home Assistant 1.8.0** is the current integration release documented by this repository.
 
-It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.1.8**). Direct camera/image delivery into Monita Chat Channels requires **Monita 1.1.7 or newer**; older compatible servers continue to use the supported legacy/application-token paths where documented.
+It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.2.0**). Direct camera/image delivery into Notification and Chat Channels requires **Monita 1.1.9 or newer**; Monita 1.2.0 also adds per-message collaboration controls and the 24-hour Notification Channel retention policy.
 
 Companion client:
 
-- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current phone-test milestone: **0.3.11**
+- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current phone-test milestone: **0.3.12**
 
 ## Documentation
 
@@ -34,7 +34,7 @@ The README covers installation and the most common workflows. The complete guide
 - UI setup through **Settings → Devices & services**
 - No `configuration.yaml` changes required
 - Standard Home Assistant `notify` entity
-- **Push Message** action (`monita.send`) with Channel targeting, priority, Markdown, and advanced extras
+- **Push Message** action (`monita.send`) with Channel targeting, priority, Markdown, per-message controls, and advanced extras
 - Camera/image notifications that upload real image bytes to Monita for mobile and remote access, including direct delivery into Chat Channels on Monita 1.1.7+
 - Exact application-token validation without creating a test notification
 - Stable Channel identity on current Monita servers
@@ -64,7 +64,7 @@ Every user-facing feature above is documented in the [Complete Feature & Usage G
 | Setup, token roles, Channel identity, legacy validation | [Connection and credential model](docs/FEATURES.md#1-connection-and-credential-model) |
 | Multiple Monita Channels | [Multiple Channels and Manage Channels](docs/FEATURES.md#2-multiple-channels-and-manage-channels) |
 | Standard Home Assistant notify entity | [Standard notify entities](docs/FEATURES.md#3-standard-home-assistant-notify-entities) |
-| Push Message, priority, Markdown, extras | [Push Message action](docs/FEATURES.md#4-push-message-action-gotify_musend) |
+| Push Message, priority, Markdown, extras | [Push Message action](docs/FEATURES.md#4-push-message-action-monitasend) |
 | Camera, image entity, and image URL notifications | [Image notifications](docs/FEATURES.md#5-image-notifications) |
 | Realtime inbound Channel messages | [Realtime inbound messages](docs/FEATURES.md#6-realtime-inbound-channel-messages) |
 | Native bidirectional Home Assistant bridge | [Native pairing](docs/FEATURES.md#7-native-home-assistant-pairing) |
@@ -80,13 +80,13 @@ Every user-facing feature above is documented in the [Complete Feature & Usage G
 
 **Monita for Home Assistant was formerly Gotify-MU for Home Assistant.** The rebrand is intentionally non-destructive.
 
-Existing installations keep the technical Home Assistant integration domain and service namespace:
+Monita now has its own canonical Home Assistant identity:
 
+- integration domain: `monita`
+- component directory: `custom_components/monita`
 - canonical automation action: `monita.send`
-- existing config entries, entity unique IDs, scripts, and stored credentials remain valid
-- the historical Home Assistant integration domain is retained internally only as an in-place upgrade compatibility layer
 
-You do **not** need to delete and recreate the integration just because the display name changed to Monita. The legacy technical identifiers remain in place for upgrade compatibility and may be migrated only through a separately documented compatibility-safe migration in a future release.
+Existing installations that were created under the historical domain continue to load through a compatibility component so upgrades do not break stored config entries, entity unique IDs, credentials, or existing automations. New installations use `monita` only. The compatibility component is not the canonical Monita implementation and can be removed in a future major release after migration coverage is complete.
 
 The underlying HTTP/WebSocket API remains Gotify-compatible where documented. References to Gotify in protocol field names or compatibility notes are technical compatibility references, not the active product name.
 
@@ -133,14 +133,16 @@ Manual installation is provided for users who deliberately manage custom compone
 Copy:
 
 ```text
-custom_components/gotify_mu
+custom_components/monita
 ```
 
 to:
 
 ```text
-/config/custom_components/gotify_mu
+/config/custom_components/monita
 ```
+
+Existing installations created under the historical component directory can leave that compatibility directory in place during the transition.
 
 Then restart Home Assistant.
 

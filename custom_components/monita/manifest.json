@@ -1,6 +1,6 @@
 {
-  "domain": "gotify_mu",
-  "name": "Monita (Existing Install Compatibility)",
+  "domain": "monita",
+  "name": "Monita",
   "codeowners": [
     "@bradjtrammell"
   ],

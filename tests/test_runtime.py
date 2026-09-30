@@ -184,6 +184,7 @@ async def test_push_message_supports_priority_markdown_and_channel_selection(has
                 "message": "**High temperature**",
                 "priority": 9,
                 "markdown": True,
+                "controls": ["assign", "resolve", "attach"],
             },
             blocking=True,
         )
@@ -198,7 +199,8 @@ async def test_push_message_supports_priority_markdown_and_channel_selection(has
                 "entry_id": ENTRY_ID,
                 "channel_id": 8,
                 "source": "monita-ha",
-            }
+            },
+            "monita::controls": ["assign", "resolve", "attach"],
         },
         channel_id=8,
     )
@@ -593,6 +595,61 @@ async def test_server_notification_channel_image_routes_directly_when_supported(
     client.async_send.assert_not_awaited()
 
 
+async def test_server_notification_image_refreshes_capabilities_after_server_upgrade(hass):
+    """A server upgraded after HA loaded can immediately accept Notification images."""
+    image = GotifyMUImage(
+        content=b"\xff\xd8\xff\xe0jpeg",
+        filename="front-door.jpg",
+        content_type="image/jpeg",
+    )
+    client = SimpleNamespace(
+        app_token="",
+        client_token="client-token",
+        async_capabilities=AsyncMock(
+            return_value={"features": {"chatImages": True, "notificationImages": True}}
+        ),
+        async_send_chat_image=AsyncMock(return_value={"id": 58}),
+        async_upload_image=AsyncMock(),
+        async_send=AsyncMock(),
+    )
+    channel = _channel(8, "Important Notices", role="publisher")
+    runtime = SimpleNamespace(
+        client=client,
+        channel_id=7,
+        channel_name="Security",
+        active_channel_ids=(7, 8),
+        capabilities={"features": {"chatImages": True}},
+        channel=lambda channel_id: channel if channel_id == 8 else None,
+    )
+    entry = _entry(runtime, legacy=False)
+
+    with (
+        patch.object(hass.config_entries, "async_entries", return_value=[entry]),
+        patch(
+            "custom_components.gotify_mu.async_acquire_entity_image",
+            new=AsyncMock(return_value=image),
+        ),
+    ):
+        assert await async_setup(hass, {})
+        await hass.services.async_call(
+            SERVICE_DOMAIN,
+            SERVICE_SEND,
+            {
+                "entry_id": ENTRY_ID,
+                "channel_id": 8,
+                "title": "Back Doorbell Rung",
+                "message": "Someone is at the back door.",
+                "priority": 8,
+                "image_entity": "camera.back_door_fluent",
+            },
+            blocking=True,
+        )
+
+    client.async_capabilities.assert_awaited_once()
+    client.async_send_chat_image.assert_awaited_once()
+    client.async_send.assert_not_awaited()
+
+
 async def test_server_notification_image_falls_back_to_text_on_older_server(hass):
     """Older Monita servers still deliver the alert instead of dropping it."""
     image = GotifyMUImage(
@@ -603,6 +660,7 @@ async def test_server_notification_image_falls_back_to_text_on_older_server(hass
     client = SimpleNamespace(
         app_token="",
         client_token="client-token",
+        async_capabilities=AsyncMock(return_value={"features": {"chatImages": True}}),
         async_send_chat_image=AsyncMock(),
         async_upload_image=AsyncMock(),
         async_send=AsyncMock(return_value={"id": 57}),

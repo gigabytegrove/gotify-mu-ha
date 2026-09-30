@@ -9,7 +9,7 @@ send:
       selector:
         entity:
           domain: notify
-          integration: gotify_mu
+          integration: monita
     title:
       name: Title
       required: false

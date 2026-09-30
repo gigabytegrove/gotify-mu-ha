@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.8.0 - 2026-09-30
+
+### Canonical Monita identity
+- Added the canonical Home Assistant integration domain `monita` under `custom_components/monita`.
+- New installations use `monita` and the canonical `monita.send` action.
+- Retained the historical integration domain only as an existing-install compatibility component so previously stored config entries, entity identities, credentials, and automations remain loadable.
+- The canonical and compatibility components resolve Monita Channel targets across both domains, allowing mixed transition states without binding the action to whichever component loads first.
+- Canonical source classes use Monita naming; Gotify terminology remains only where it describes the compatible wire protocol or the historical compatibility layer.
+
+### Messaging
+- Added `@username` mention support to the current Monita server/Web clients and Android conversation rendering.
+- Home Assistant message-control metadata remains compatible with Monita 1.2.0.
+
+## 1.7.0 - 2026-09-30
+
+### Per-message controls
+
+- Added a Message controls multi-select to `monita.send`.
+- Home Assistant can enable Assign to Me, Resolve, and Attach independently for each message.
+- Messages without selected controls remain normal notifications without workflow buttons.
+
+### Image delivery
+
+- Refreshes Monita server capabilities before falling back to text-only when an image is requested, so an upgraded Monita server can accept images without first reloading the Home Assistant integration.
+- Camera/image entity delivery remains supported on Notification and Chat Channels.
+
 ## 1.6.0 - 2026-09-30
 
 ### Monita-native automation namespace

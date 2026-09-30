@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 GUIDE = ROOT / "docs" / "FEATURES.md"
-SERVICES = ROOT / "custom_components" / "gotify_mu" / "services.yaml"
-TRANSLATIONS = ROOT / "custom_components" / "gotify_mu" / "translations" / "en.json"
+SERVICES = ROOT / "custom_components" / "monita" / "services.yaml"
+TRANSLATIONS = ROOT / "custom_components" / "monita" / "translations" / "en.json"
 
 REQUIRED_GUIDE_MARKERS = (
     "New server-centric setup",
