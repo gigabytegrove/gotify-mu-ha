@@ -22,28 +22,28 @@ from aiohttp import (
 from .const import REQUEST_TIMEOUT_SECONDS
 
 
-class GotifyMUError(Exception):
+class MonitaError(Exception):
     """Base Monita API error."""
 
 
-class GotifyMUAuthError(GotifyMUError):
+class MonitaAuthError(MonitaError):
     """Authentication failed."""
 
 
-class GotifyMUConnectionError(GotifyMUError):
+class MonitaConnectionError(MonitaError):
     """Connection failed."""
 
 
-class GotifyMURateLimitError(GotifyMUError):
+class MonitaRateLimitError(MonitaError):
     """The server rate limited the request."""
 
 
-class GotifyMUServerError(GotifyMUError):
+class MonitaServerError(MonitaError):
     """The server returned an unexpected error."""
 
 
 @dataclass(frozen=True, slots=True)
-class GotifyMUAttachment:
+class MonitaAttachment:
     """Staged Monita attachment metadata."""
 
     id: int
@@ -53,7 +53,7 @@ class GotifyMUAttachment:
 
 
 @dataclass(frozen=True, slots=True)
-class GotifyMUChannel:
+class MonitaChannel:
     """Monita channel metadata."""
 
     id: int
@@ -74,7 +74,7 @@ class GotifyMUChannel:
 
 
 @dataclass(slots=True)
-class GotifyMUClient:
+class MonitaClient:
     """Async Monita API client."""
 
     session: ClientSession
@@ -112,7 +112,7 @@ class GotifyMUClient:
         try:
             return await response.json(content_type=None)
         except (ClientError, UnicodeError, json.JSONDecodeError) as err:
-            raise GotifyMUServerError(
+            raise MonitaServerError(
                 f"Monita returned invalid JSON from {response.url.path}"
             ) from err
 
@@ -124,15 +124,15 @@ class GotifyMUClient:
     ) -> None:
         if response.status in (401, 403):
             context = f" ({auth_context})" if auth_context else ""
-            raise GotifyMUAuthError(
+            raise MonitaAuthError(
                 f"Monita rejected authentication{context}: HTTP {response.status}"
             )
         if response.status == 429:
-            raise GotifyMURateLimitError("Monita rate limited the request")
+            raise MonitaRateLimitError("Monita rate limited the request")
         if response.status >= 500:
             detail = await self._error_detail(response)
             suffix = f": {detail}" if detail else ""
-            raise GotifyMUServerError(
+            raise MonitaServerError(
                 f"Monita returned HTTP {response.status}{suffix}"
             )
         try:
@@ -140,22 +140,22 @@ class GotifyMUClient:
         except ClientResponseError as err:
             detail = await self._error_detail(response)
             suffix = f": {detail}" if detail else ""
-            raise GotifyMUError(
+            raise MonitaError(
                 f"Monita returned HTTP {response.status}{suffix}"
             ) from err
 
     @staticmethod
-    def _parse_channel(data: Any) -> GotifyMUChannel:
+    def _parse_channel(data: Any) -> MonitaChannel:
         if not isinstance(data, dict):
-            raise GotifyMUServerError("Monita returned invalid channel metadata")
+            raise MonitaServerError("Monita returned invalid channel metadata")
         try:
             channel_id = int(data["id"])
             name = str(data["name"])
         except (KeyError, TypeError, ValueError) as err:
-            raise GotifyMUServerError(
+            raise MonitaServerError(
                 "Monita returned incomplete channel metadata"
             ) from err
-        return GotifyMUChannel(
+        return MonitaChannel(
             id=channel_id,
             name=name,
             description=str(data.get("description", "")),
@@ -181,10 +181,10 @@ class GotifyMUClient:
                 await self._raise_for_status(response)
                 data = await self._read_json(response)
                 return data if isinstance(data, dict) else {}
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def async_version(self) -> dict[str, Any]:
         """Return server version information when available."""
@@ -197,12 +197,12 @@ class GotifyMUClient:
                 await self._raise_for_status(response)
                 data = await self._read_json(response)
                 return data if isinstance(data, dict) else {}
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
-    async def async_validate_application_token(self) -> GotifyMUChannel | None:
+    async def async_validate_application_token(self) -> MonitaChannel | None:
         """Validate the application token without creating a notification.
 
         Newer Monita versions expose GET /application/current for exact token
@@ -212,7 +212,7 @@ class GotifyMUClient:
         invalid token returns HTTP 401/403.
         """
         if not self.app_token:
-            raise GotifyMUAuthError("No Monita application token is configured")
+            raise MonitaAuthError("No Monita application token is configured")
         try:
             async with self.session.get(
                 f"{self.server_url}/application/current",
@@ -225,10 +225,10 @@ class GotifyMUClient:
                 await self._raise_for_status(response, auth_context="application token")
                 data = await self._read_json(response)
                 return self._parse_channel(data)
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def _async_validate_application_token_legacy(self) -> None:
         """Validate an app token against Gotify-compatible servers without identity API."""
@@ -241,24 +241,24 @@ class GotifyMUClient:
                 timeout=self._timeout,
             ) as response:
                 if response.status in (401, 403):
-                    raise GotifyMUAuthError(
+                    raise MonitaAuthError(
                         f"Monita rejected the application token: HTTP {response.status}"
                     )
                 if response.status == 400:
                     return None
                 await self._raise_for_status(response, auth_context="application token")
-                raise GotifyMUServerError(
+                raise MonitaServerError(
                     "Monita unexpectedly accepted an empty message payload"
                 )
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def async_validate_client_token(self) -> dict[str, Any]:
         """Validate the optional client token and return the current user."""
         if not self.client_token:
-            raise GotifyMUAuthError("No Monita client token is configured")
+            raise MonitaAuthError("No Monita client token is configured")
         try:
             async with self.session.get(
                 f"{self.server_url}/current/user",
@@ -269,14 +269,14 @@ class GotifyMUClient:
                 await self._raise_for_status(response, auth_context="client token")
                 data = await self._read_json(response)
                 if not isinstance(data, dict):
-                    raise GotifyMUServerError("Monita returned invalid user metadata")
+                    raise MonitaServerError("Monita returned invalid user metadata")
                 return data
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
-    async def async_get_channels(self) -> list[GotifyMUChannel]:
+    async def async_get_channels(self) -> list[MonitaChannel]:
         """Return channels accessible to the client-token user."""
         if not self.client_token:
             return []
@@ -290,18 +290,18 @@ class GotifyMUClient:
                 await self._raise_for_status(response, auth_context="client token")
                 raw = await self._read_json(response)
                 if not isinstance(raw, list):
-                    raise GotifyMUServerError("Monita returned invalid channel metadata")
-                channels: list[GotifyMUChannel] = []
+                    raise MonitaServerError("Monita returned invalid channel metadata")
+                channels: list[MonitaChannel] = []
                 for item in raw:
                     try:
                         channels.append(self._parse_channel(item))
-                    except GotifyMUServerError:
+                    except MonitaServerError:
                         continue
                 return channels
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def async_capabilities(self) -> dict[str, Any]:
         """Return optional Monita capability metadata."""
@@ -319,10 +319,10 @@ class GotifyMUClient:
                 await self._raise_for_status(response)
                 data = await self._read_json(response)
                 return data if isinstance(data, dict) else {}
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def async_send_chat_image(
         self,
@@ -338,11 +338,11 @@ class GotifyMUClient:
     ) -> dict[str, Any]:
         """Send one image directly into a Monita Chat Channel."""
         if not self.client_token:
-            raise GotifyMUAuthError(
+            raise MonitaAuthError(
                 "A Monita client token is required to send Chat images"
             )
         if not image:
-            raise GotifyMUError("Chat image is empty")
+            raise MonitaError("Chat image is empty")
 
         form = FormData()
         form.add_field("message", message)
@@ -371,20 +371,20 @@ class GotifyMUClient:
                 timeout=self._timeout,
             ) as response:
                 if response.status == 404:
-                    raise GotifyMUError(
+                    raise MonitaError(
                         "This Monita server does not support Chat image messages"
                     )
                 if response.status == 403:
-                    raise GotifyMUError(
+                    raise MonitaError(
                         "Monita does not allow this account to post to the selected Chat Channel"
                     )
                 await self._raise_for_status(response, auth_context="client token")
                 data = await self._read_json(response)
                 return data if isinstance(data, dict) else {}
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def async_upload_image(
         self,
@@ -392,10 +392,10 @@ class GotifyMUClient:
         *,
         filename: str,
         content_type: str,
-    ) -> GotifyMUAttachment:
+    ) -> MonitaAttachment:
         """Upload image bytes to the staged attachment endpoint."""
         if not self.app_token:
-            raise GotifyMUError(
+            raise MonitaError(
                 "Image uploads require a Channel application token on this server"
             )
         form = FormData()
@@ -417,7 +417,7 @@ class GotifyMUClient:
                 await self._raise_for_status(response, auth_context="application token")
                 data = await self._read_json(response)
                 if not isinstance(data, dict):
-                    raise GotifyMUServerError(
+                    raise MonitaServerError(
                         "Monita returned invalid attachment metadata"
                     )
 
@@ -425,7 +425,7 @@ class GotifyMUClient:
                 try:
                     attachment_id = int(raw_id)
                 except (TypeError, ValueError) as err:
-                    raise GotifyMUServerError(
+                    raise MonitaServerError(
                         "Monita returned attachment metadata without a staged ID"
                     ) from err
 
@@ -434,7 +434,7 @@ class GotifyMUClient:
                     "contentType",
                     data.get("content_type"),
                 )
-                return GotifyMUAttachment(
+                return MonitaAttachment(
                     id=attachment_id,
                     filename=(
                         str(returned_filename)
@@ -448,10 +448,10 @@ class GotifyMUClient:
                     ),
                     size=len(image),
                 )
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     async def async_send(
         self,
@@ -476,7 +476,7 @@ class GotifyMUClient:
         }
         if channel_id is not None:
             if not self.client_token:
-                raise GotifyMUAuthError(
+                raise MonitaAuthError(
                     "A Monita client token is required to push to a selected Channel"
                 )
             payload["appid"] = int(channel_id)
@@ -484,7 +484,7 @@ class GotifyMUClient:
             auth_context = "client token"
         else:
             if not self.app_token:
-                raise GotifyMUAuthError(
+                raise MonitaAuthError(
                     "No Monita application token is configured for this legacy send"
                 )
             token = self.app_token
@@ -514,21 +514,21 @@ class GotifyMUClient:
                 timeout=self._timeout,
             ) as response:
                 if channel_id is not None and response.status == 403:
-                    raise GotifyMUError(
+                    raise MonitaError(
                         "Monita does not allow this account to post to the selected Channel"
                     )
                 await self._raise_for_status(response, auth_context=auth_context)
                 data = await self._read_json(response)
                 return data if isinstance(data, dict) else {}
-        except GotifyMUError:
+        except MonitaError:
             raise
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
 
     def _stream_url(self) -> str:
         parsed = urlsplit(self.server_url)
         if parsed.scheme not in ("http", "https"):
-            raise GotifyMUConnectionError(
+            raise MonitaConnectionError(
                 "Monita server URL must use http:// or https://"
             )
         scheme = "wss" if parsed.scheme == "https" else "ws"
@@ -542,7 +542,7 @@ class GotifyMUClient:
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield realtime messages from the Monita WebSocket stream."""
         if not self.client_token:
-            raise GotifyMUAuthError(
+            raise MonitaAuthError(
                 "A Monita client token is required for inbound messages"
             )
 
@@ -568,20 +568,20 @@ class GotifyMUClient:
                         return
                     elif msg.type == WSMsgType.ERROR:
                         error = websocket.exception()
-                        raise GotifyMUConnectionError(
+                        raise MonitaConnectionError(
                             str(error or "Monita WebSocket error")
                         )
-        except GotifyMUError:
+        except MonitaError:
             raise
         except ClientResponseError as err:
             if err.status in (401, 403):
-                raise GotifyMUAuthError(
+                raise MonitaAuthError(
                     f"Monita rejected the client token: HTTP {err.status}"
                 ) from err
             if err.status == 429:
-                raise GotifyMURateLimitError(
+                raise MonitaRateLimitError(
                     "Monita rate limited the WebSocket connection"
                 ) from err
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
         except (ClientConnectionError, ClientError, TimeoutError) as err:
-            raise GotifyMUConnectionError(str(err)) from err
+            raise MonitaConnectionError(str(err)) from err
