@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
-from . import GotifyMUConfigEntry
+from . import MonitaConfigEntry
 from .const import (
     CONF_APP_TOKEN,
     CONF_CLIENT_TOKEN,
@@ -28,7 +28,7 @@ TO_REDACT = {
 
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
-    entry: GotifyMUConfigEntry,
+    entry: MonitaConfigEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a Monita config entry."""
     runtime = entry.runtime_data
