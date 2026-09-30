@@ -154,6 +154,7 @@ Supported fields:
 | `entry_id` | No | Legacy/advanced server-entry targeting |
 | `image_entity` | No | Captures a current `camera.*` or `image.*` image |
 | `image_url` | No | Downloads an HTTP/HTTPS image inside Home Assistant |
+| `controls` | No | Selects optional per-message controls: Assign to Me, Resolve/Reopen, and Attach |
 | `extras` | No | Advanced caller-supplied extras |
 
 `image_entity` and `image_url` are mutually exclusive.
@@ -183,6 +184,16 @@ action:
       priority: 8
       markdown: true
 ```
+
+### Optional message controls
+
+The **Message controls** multi-select applies to the individual message being sent. No collaboration controls are enabled unless you select them.
+
+- `assign` exposes **Assign to Me**.
+- `resolve` exposes **Resolve / Reopen**.
+- `attach` allows Channel members to add files or images to that message.
+
+Monita carries these selections in the `monita::messageControls` message extra and enforces them server-side; they are not merely hidden or shown by the user interface.
 
 ### Compatibility behavior
 
