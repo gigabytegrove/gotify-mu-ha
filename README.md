@@ -34,7 +34,7 @@ The README covers installation and the most common workflows. The complete guide
 - UI setup through **Settings → Devices & services**
 - No `configuration.yaml` changes required
 - Standard Home Assistant `notify` entity
-- **Push Message** action (`gotify_mu.send`) with Channel targeting, priority, Markdown, and advanced extras
+- **Push Message** action (`monita.send`) with Channel targeting, priority, Markdown, and advanced extras
 - Camera/image notifications that upload real image bytes to Monita for mobile and remote access, including direct delivery into Chat Channels on Monita 1.1.7+
 - Exact application-token validation without creating a test notification
 - Stable Channel identity on current Monita servers
@@ -82,10 +82,9 @@ Every user-facing feature above is documented in the [Complete Feature & Usage G
 
 Existing installations keep the technical Home Assistant integration domain and service namespace:
 
-- integration domain: `gotify_mu`
-- custom component directory: `custom_components/gotify_mu`
-- service action: `gotify_mu.send`
-- existing config entries, entity unique IDs, automations, scripts, and stored credentials remain valid
+- canonical automation action: `monita.send`
+- existing config entries, entity unique IDs, scripts, and stored credentials remain valid
+- the historical Home Assistant integration domain is retained internally only as an in-place upgrade compatibility layer
 
 You do **not** need to delete and recreate the integration just because the display name changed to Monita. The legacy technical identifiers remain in place for upgrade compatibility and may be migrated only through a separately documented compatibility-safe migration in a future release.
 
@@ -216,13 +215,13 @@ Use Home Assistant's entity picker rather than assuming the generated entity ID.
 
 ### Push Message
 
-Monita also exposes a dedicated **Push Message** action in Home Assistant. Its compatibility-safe technical action ID remains `gotify_mu.send`.
+Monita also exposes a dedicated **Push Message** action in Home Assistant. Its compatibility-safe technical action ID remains `monita.send`.
 
 The action editor includes a **Channel** picker. Choose the Monita notification entity for the destination Channel, then set the title, message, priority, Markdown, or advanced extras.
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       channel: notify.security
       title: "Security Alert"
@@ -241,7 +240,7 @@ For a camera entity, use `image_entity`. Home Assistant captures a fresh frame a
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Front Door"
       message: "Someone is at the door."
@@ -255,7 +254,7 @@ Home Assistant `image.*` entities use the same `image_entity` field:
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Latest Snapshot"
       message: "A new snapshot is available."
@@ -266,7 +265,7 @@ For an advanced HTTP/HTTPS source, use `image_url`. Use this only when the image
 
 ```yaml
 action:
-  - action: gotify_mu.send
+  - action: monita.send
     data:
       title: "Driveway"
       message: "Motion detected."
