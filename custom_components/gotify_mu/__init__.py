@@ -64,6 +64,8 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
+MESSAGE_CONTROL_VALUES = ("assign", "resolve", "attach")
+
 SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("message"): cv.string,
@@ -75,6 +77,10 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Optional("entry_id"): cv.string,
         vol.Exclusive("image_entity", "image_source"): cv.entity_id,
         vol.Exclusive("image_url", "image_source"): cv.string,
+        vol.Optional("controls", default=[]): vol.All(
+            cv.ensure_list,
+            [vol.In(MESSAGE_CONTROL_VALUES)],
+        ),
         vol.Optional("extras"): dict,
     }
 )
@@ -141,6 +147,25 @@ MONITA_SEND_DESCRIPTION: dict[str, Any] = {
             ),
             "required": False,
             "selector": {"text": {"type": "url"}},
+        },
+        "controls": {
+            "name": "Message controls",
+            "description": (
+                "Choose which collaboration controls this message exposes in Monita. "
+                "Leave empty for a normal notification."
+            ),
+            "required": False,
+            "default": [],
+            "selector": {
+                "select": {
+                    "multiple": True,
+                    "options": [
+                        {"value": "assign", "label": "Assign to Me"},
+                        {"value": "resolve", "label": "Resolve"},
+                        {"value": "attach", "label": "Attach"},
+                    ],
+                }
+            },
         },
         "extras": {
             "name": "Monita extras",
@@ -447,6 +472,16 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             }
         )
         extras[INTEGRATION_ORIGIN_EXTRA] = origin
+
+        controls = [
+            value
+            for value in call.data.get("controls", [])
+            if value in MESSAGE_CONTROL_VALUES
+        ]
+        if controls:
+            extras["monita::controls"] = controls
+        else:
+            extras.pop("monita::controls", None)
 
         use_client_route = bool(runtime.client.client_token)
         legacy_image_route = bool(
