@@ -1,0 +1,77 @@
+send:
+  name: Push Message
+  description: Legacy compatibility description for Push Message. The canonical action namespace is monita.send.
+  fields:
+    channel:
+      name: Channel
+      description: Choose the Monita notification entity for the Channel that should receive this message.
+      required: false
+      selector:
+        entity:
+          domain: notify
+          integration: gotify_mu
+    title:
+      name: Title
+      required: false
+      selector:
+        text:
+    message:
+      name: Message
+      required: true
+      selector:
+        text:
+          multiline: true
+    priority:
+      name: Priority
+      description: Monita priority from 0 through 10.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 1
+          mode: slider
+    markdown:
+      name: Markdown
+      description: Render the message as Markdown on clients that support Gotify-compatible message extras.
+      required: false
+      default: false
+      selector:
+        boolean:
+    image_entity:
+      name: Image entity
+      description: Capture a current Home Assistant camera/image and send it to the selected Monita Channel. Monita 1.1.9+ supports direct images on Notification and Chat Channels; older servers still receive the text alert.
+      required: false
+      selector:
+        entity:
+          domain:
+            - camera
+            - image
+    image_url:
+      name: Image URL
+      description: Download an HTTP/HTTPS JPEG, PNG, GIF, or WebP through Home Assistant (maximum 10 MiB), then upload the bytes to Monita. Mutually exclusive with Image entity.
+      required: false
+      selector:
+        text:
+          type: url
+    controls:
+      name: Message controls
+      description: Choose which collaboration controls this message exposes in Monita. Leave empty for a normal notification.
+      required: false
+      default: []
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Assign to Me
+              value: assign
+            - label: Resolve
+              value: resolve
+            - label: Attach
+              value: attach
+    extras:
+      name: Monita extras
+      description: Optional advanced Monita extras. The Home Assistant origin marker is merged into these values.
+      required: false
+      selector:
+        object:
