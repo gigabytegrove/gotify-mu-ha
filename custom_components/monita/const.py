@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from homeassistant.const import Platform
 
-DOMAIN = "gotify_mu"  # Legacy Home Assistant config-entry domain retained for in-place upgrades.
-SERVICE_DOMAIN = "monita"
-LEGACY_SERVICE_DOMAIN = DOMAIN
+DOMAIN = "monita"
+LEGACY_DOMAIN = "gotify_mu"
 
 CONF_SERVER_URL = "server_url"
 CONF_APP_TOKEN = "app_token"
@@ -39,6 +38,7 @@ SERVICE_SEND = "send"
 EVENT_TYPE_MESSAGE = "message"
 
 INTEGRATION_ORIGIN_EXTRA = "homeassistant::monita"
+# Compatibility only: recognize messages stamped by pre-2.0 installations.
 LEGACY_INTEGRATION_ORIGIN_EXTRA = "homeassistant::gotify_mu"
 REQUEST_TIMEOUT_SECONDS = 10
 STREAM_RECONNECT_MAX_SECONDS = 60
