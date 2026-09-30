@@ -42,11 +42,11 @@ _NATIVE_RETRY_MAX_SECONDS = 8
 BridgeStatusCallback = Callable[[], None]
 
 
-class GotifyMUNativeError(Exception):
+class MonitaNativeError(Exception):
     """Base native bridge error."""
 
 
-class GotifyMUNativePairingError(GotifyMUNativeError):
+class MonitaNativePairingError(MonitaNativeError):
     """Native pairing or unpairing failed with a user-facing reason."""
 
     def __init__(self, reason: str) -> None:
@@ -135,43 +135,43 @@ async def async_pair_native(
             timeout=ClientTimeout(total=REQUEST_TIMEOUT_SECONDS),
         ) as response:
             if response.status in (400, 401, 403, 404):
-                raise GotifyMUNativePairingError("invalid_pairing_code")
+                raise MonitaNativePairingError("invalid_pairing_code")
             if response.status == 410:
-                raise GotifyMUNativePairingError("pairing_expired")
+                raise MonitaNativePairingError("pairing_expired")
             if response.status == 429:
-                raise GotifyMUNativePairingError("rate_limited")
+                raise MonitaNativePairingError("rate_limited")
             if response.status >= 500:
-                raise GotifyMUNativePairingError("cannot_connect")
+                raise MonitaNativePairingError("cannot_connect")
             if response.status < 200 or response.status >= 300:
-                raise GotifyMUNativePairingError("pairing_failed")
+                raise MonitaNativePairingError("pairing_failed")
 
             try:
                 payload = await response.json(content_type=None)
             except (ClientError, UnicodeError, json.JSONDecodeError) as err:
-                raise GotifyMUNativePairingError("pairing_failed") from err
+                raise MonitaNativePairingError("pairing_failed") from err
 
             if not isinstance(payload, dict):
-                raise GotifyMUNativePairingError("pairing_failed")
+                raise MonitaNativePairingError("pairing_failed")
 
             try:
                 integration_id = int(payload["integrationId"])
                 secret = str(payload["secret"]).strip()
                 event_path = str(payload["eventPath"]).strip()
             except (KeyError, TypeError, ValueError) as err:
-                raise GotifyMUNativePairingError("pairing_failed") from err
+                raise MonitaNativePairingError("pairing_failed") from err
 
             if integration_id < 1 or not secret or not event_path.startswith("/"):
-                raise GotifyMUNativePairingError("pairing_failed")
+                raise MonitaNativePairingError("pairing_failed")
 
             return NativePairingResult(
                 integration_id=integration_id,
                 secret=secret,
                 event_path=event_path,
             )
-    except GotifyMUNativePairingError:
+    except MonitaNativePairingError:
         raise
     except (ClientConnectionError, ClientError, TimeoutError) as err:
-        raise GotifyMUNativePairingError("cannot_connect") from err
+        raise MonitaNativePairingError("cannot_connect") from err
 
 
 async def async_revoke_native(
@@ -193,18 +193,18 @@ async def async_revoke_native(
             if 200 <= response.status < 300:
                 return
             if response.status in (401, 403):
-                raise GotifyMUNativePairingError("unpair_auth_failed")
+                raise MonitaNativePairingError("unpair_auth_failed")
             if response.status == 404:
-                raise GotifyMUNativePairingError("unpair_not_found")
+                raise MonitaNativePairingError("unpair_not_found")
             if response.status == 429:
-                raise GotifyMUNativePairingError("rate_limited")
+                raise MonitaNativePairingError("rate_limited")
             if response.status >= 500:
-                raise GotifyMUNativePairingError("cannot_unpair")
-            raise GotifyMUNativePairingError("unpair_failed")
-    except GotifyMUNativePairingError:
+                raise MonitaNativePairingError("cannot_unpair")
+            raise MonitaNativePairingError("unpair_failed")
+    except MonitaNativePairingError:
         raise
     except (ClientConnectionError, ClientError, TimeoutError) as err:
-        raise GotifyMUNativePairingError("cannot_unpair") from err
+        raise MonitaNativePairingError("cannot_unpair") from err
 
 
 def _bearer_token(request: web.Request) -> str | None:
@@ -311,7 +311,7 @@ class PendingNativeWebhook:
             self._registered = False
 
 
-class GotifyMUNativeBridge:
+class MonitaNativeBridge:
     """Persistent bidirectional event bridge for one paired config entry."""
 
     def __init__(
