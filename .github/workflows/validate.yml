@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile Python
-        run: python -m compileall custom_components/gotify_mu tests
+        run: python -m compileall custom_components/monita custom_components/gotify_mu tests
       - name: Validate JSON
         run: |
           python - <<'PY'
