@@ -526,6 +526,30 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                             )
                         )
                     )
+
+                    # Capabilities are normally loaded with the config entry, but
+                    # the Monita server may have been upgraded without reloading
+                    # Home Assistant. Refresh once before dropping an image so a
+                    # newly upgraded server can accept it immediately.
+                    if not direct_images_supported:
+                        refreshed = await runtime.client.async_capabilities()
+                        if isinstance(refreshed, dict):
+                            runtime.capabilities = refreshed
+                            features = refreshed.get("features", {})
+                            direct_images_supported = bool(
+                                isinstance(features, dict)
+                                and (
+                                    (
+                                        channel_type == "chat"
+                                        and features.get("chatImages") is True
+                                    )
+                                    or (
+                                        channel_type != "chat"
+                                        and features.get("notificationImages") is True
+                                    )
+                                )
+                            )
+
                     if direct_images_supported:
                         direct_extras = dict(extras)
                         if call.data.get("markdown", False):
