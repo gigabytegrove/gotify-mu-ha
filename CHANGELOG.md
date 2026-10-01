@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.8.2 - 2026-10-01
+
+### Canonical branding refresh
+- Installed the newly supplied `MonitaHomeAssistant_Full-01.svg` and `Monita_HA_Icon-01.svg` as the authoritative Home Assistant branding sources.
+- Repository documentation now displays the supplied full SVG directly for crisp vector presentation.
+- Home Assistant/HACS PNG surfaces are deterministic raster renders of those supplied vectors without recoloring, cropping, reshaping, or redrawing.
+- Corrected integration `logo.png` assets to use the supplied full Home Assistant logo while `icon.png` assets use the supplied Home Assistant icon.
+- Root HACS `logo.png` and `icon.png` use the supplied square Home Assistant icon for HACS repository-card compatibility.
+- Both the canonical `monita` domain and existing-install `gotify_mu` compatibility domain carry the same new artwork.
+- Branding integrity checks now lock both source vectors and all generated compatibility aliases.
+
+### Compatibility
+- No config-entry, entity, service/action, credential, or automation migration is required from 1.8.1.
+- Existing `gotify_mu` installations remain supported while new installations can use the canonical `monita` domain.
+
 ## 1.8.1 - 2026-10-01
 
 ### HACS branding
