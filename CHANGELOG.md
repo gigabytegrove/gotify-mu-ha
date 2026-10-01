@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.8.3 — 2026-10-01
+
+### Transparent icon background
+
+- Removed only the 512×512 gray background rectangle from the canonical Monita for Home Assistant icon SVG.
+- Preserved all Home Assistant icon artwork, gradients, embedded image data, geometry, colors, clipping, and the original vector canvas unchanged.
+- HACS/root branding and both canonical and compatibility component icon PNGs are regenerated from the transparent master at full 512×512 quality.
+
+### Compatibility
+
+- No configuration migration is required.
+- Existing `monita` and compatibility `gotify_mu` installations update in place.
+
 ## 1.8.2 - 2026-10-01
 
 ### Canonical branding refresh
