@@ -1,0 +1,43 @@
+name: Refresh canonical branding assets
+
+on:
+  push:
+    branches:
+      - branding/2026-10-01-canonical-assets
+    paths:
+      - branding/MonitaHomeAssistant_Full-01.svg
+      - branding/Monita_HA_Icon-01.svg
+      - scripts/render_branding.py
+      - .github/workflows/refresh-branding-assets.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Render exact supplied artwork
+        run: |
+          python -m pip install "CairoSVG==2.8.2"
+          python scripts/render_branding.py
+      - name: Commit generated Home Assistant and HACS assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add             icon.png logo.png             custom_components/monita/brand/*.png             custom_components/gotify_mu/brand/*.png
+          if git diff --cached --quiet; then
+            echo "Generated branding already matches the canonical SVG masters."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Render supplied Monita Home Assistant branding"
+          git push
