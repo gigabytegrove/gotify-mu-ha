@@ -1,20 +1,32 @@
 {
-  "version": 2,
+  "version": 3,
   "hash_format": "git-blob-sha1",
-  "assets": {
-    "custom_components/gotify_mu/brand/monita-ha-icon.png": {
-      "sha": "00d4b9878a7dd10e76485660c8dd86dd43004824",
-      "width": 384,
-      "height": 384
+  "sources": {
+    "branding/MonitaHomeAssistant_Full-01.svg": {
+      "sha": "6669bdc2bd33690d55dd9a3ef0265d8e7c869249"
     },
-    "custom_components/gotify_mu/brand/monita-ha-logo.png": {
-      "sha": "00d4b9878a7dd10e76485660c8dd86dd43004824",
-      "width": 384,
-      "height": 384
+    "branding/Monita_HA_Icon-01.svg": {
+      "sha": "736e11cc4c87aba70a1218d18f961b7525b85deb"
+    }
+  },
+  "rasters": {
+    "custom_components/monita/brand/monita-ha-icon.png": {
+      "width": 512,
+      "height": 512
+    },
+    "custom_components/monita/brand/monita-ha-logo.png": {
+      "width": 1413,
+      "height": 512
     }
   },
   "aliases": {
-    "custom_components/gotify_mu/brand/icon.png": "custom_components/gotify_mu/brand/monita-ha-icon.png",
-    "custom_components/gotify_mu/brand/logo.png": "custom_components/gotify_mu/brand/monita-ha-logo.png"
+    "custom_components/monita/brand/icon.png": "custom_components/monita/brand/monita-ha-icon.png",
+    "custom_components/monita/brand/logo.png": "custom_components/monita/brand/monita-ha-logo.png",
+    "custom_components/gotify_mu/brand/monita-ha-icon.png": "custom_components/monita/brand/monita-ha-icon.png",
+    "custom_components/gotify_mu/brand/icon.png": "custom_components/monita/brand/monita-ha-icon.png",
+    "icon.png": "custom_components/monita/brand/monita-ha-icon.png",
+    "custom_components/gotify_mu/brand/monita-ha-logo.png": "custom_components/monita/brand/monita-ha-logo.png",
+    "custom_components/gotify_mu/brand/logo.png": "custom_components/monita/brand/monita-ha-logo.png",
+    "logo.png": "custom_components/monita/brand/monita-ha-logo.png"
   }
 }
