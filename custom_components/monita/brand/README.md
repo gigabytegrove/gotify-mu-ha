@@ -1,38 +1,25 @@
 # Monita for Home Assistant branding
 
-**Monita for Home Assistant** is the active identity for the integration formerly known as **Monita for Home Assistant**.
+The artwork in this directory is the approved **Monita for Home Assistant** identity supplied on **2026-10-01**.
 
-The supplied Monita artwork and palette are the authoritative visual baseline.
+## Canonical source files
 
-## Brand palette
+- `MonitaHomeAssistant_Full-01.svg` — supplied full Monita for Home Assistant logo
+- `Monita_HA_Icon-01.svg` — supplied Monita for Home Assistant icon
 
-- Primary — `#2563EB`
-- Blue — `#3B82F6`
-- Cyan — `#06B6D4`
-- Slate — `#0F172A`
-- Gray — `#9CA3B8`
+These SVGs are authoritative. Do not redraw, simplify, recolor, crop, stretch, remove backgrounds from, reinterpret, or recreate them.
 
-## Active assets
+## Active platform assets
 
-- `monita-ha-icon.png` — canonical Monita for Home Assistant integration icon
-- `monita-ha-logo.png` — canonical active logo asset
-- `icon.png` — Home Assistant/HACS compatibility alias
-- `logo.png` — Home Assistant/HACS compatibility alias
+- `monita-ha-logo.png` and `logo.png` — faithful raster renders of the supplied full logo
+- `monita-ha-icon.png` and `icon.png` — faithful raster renders of the supplied icon
 
-The compatibility aliases are byte-identical to their Monita canonical counterparts.
+Home Assistant and HACS still require PNGs on some surfaces. `scripts/render_branding.py` creates those raster files directly from the source SVGs at the source artwork's native dimensions.
 
-Legacy Monita artwork has been removed from the active tree. Git history preserves it for provenance.
+## Compatibility
 
-## Compatibility rule
-
-The visual/product identity is Monita. The Home Assistant technical domain remains `monita` in this release only to preserve existing config entries, service calls, entities, automations, and HACS upgrades.
+The canonical Home Assistant domain is `monita`. The separate `gotify_mu` component remains only so existing installations created under the historical technical domain continue to load without losing config entries, entities, actions, credentials, or automations.
 
 ## Preservation rule
 
-Do not regenerate, redraw, recolor, reinterpret, or silently replace approved Monita artwork during ordinary feature, bug-fix, documentation, CI, packaging, or release work.
-
-Any future branding change must be explicit and must update `.github/branding-lock.json`.
-
-## CI enforcement
-
-`scripts/check_branding.py` verifies the approved asset hashes, dimensions, and compatibility aliases.
+Any future branding change must start with newly supplied canonical artwork and update the branding lock. Ordinary feature, bug-fix, CI, packaging, or documentation work must not regenerate the visual design from colors or shapes.
