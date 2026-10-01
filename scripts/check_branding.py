@@ -31,6 +31,30 @@ def main() -> None:
     lock = json.loads(LOCK_FILE.read_text(encoding="utf-8"))
     failures: list[str] = []
 
+    for relative, expected in lock.get("vector_assets", {}).items():
+        path = ROOT / relative
+        if not path.is_file():
+            failures.append(f"missing canonical vector asset: {relative}")
+            continue
+        actual_sha = git_blob_sha(path.read_bytes())
+        if actual_sha != expected["sha"]:
+            failures.append(
+                f"{relative}: vector blob SHA changed "
+                f"(expected {expected['sha']}, got {actual_sha})"
+            )
+
+    for alias, canonical in lock.get("vector_aliases", {}).items():
+        alias_path = ROOT / alias
+        canonical_path = ROOT / canonical
+        if not alias_path.is_file():
+            failures.append(f"missing vector alias: {alias}")
+            continue
+        if not canonical_path.is_file():
+            failures.append(f"missing vector alias source: {canonical}")
+            continue
+        if alias_path.read_bytes() != canonical_path.read_bytes():
+            failures.append(f"{alias}: no longer byte-identical to {canonical}")
+
     for relative, expected in lock["assets"].items():
         path = ROOT / relative
         if not path.is_file():
@@ -78,8 +102,10 @@ def main() -> None:
 
     print(
         "Branding integrity OK: "
-        f"{len(lock['assets'])} canonical assets and "
-        f"{len(lock['aliases'])} compatibility aliases verified."
+        f"{len(lock.get('vector_assets', {}))} canonical vectors, "
+        f"{len(lock.get('vector_aliases', {}))} vector aliases, "
+        f"{len(lock['assets'])} canonical raster assets, and "
+        f"{len(lock['aliases'])} raster aliases verified."
     )
 
 
