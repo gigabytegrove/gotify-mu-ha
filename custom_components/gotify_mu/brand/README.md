@@ -1,38 +1,14 @@
-# Monita for Home Assistant branding
+# Monita for Home Assistant compatibility branding
 
-**Monita for Home Assistant** is the active identity for the integration formerly known as **Gotify-MU for Home Assistant**.
+This directory belongs to the historical `gotify_mu` Home Assistant domain retained for existing-install compatibility.
 
-The supplied Monita artwork and palette are the authoritative visual baseline.
+The **visual identity is Monita for Home Assistant**, and this compatibility component mirrors the exact current canonical artwork from `custom_components/monita/brand/`.
 
-## Brand palette
+## Canonical source aliases
 
-- Primary — `#2563EB`
-- Blue — `#3B82F6`
-- Cyan — `#06B6D4`
-- Slate — `#0F172A`
-- Gray — `#9CA3B8`
+- `MonitaHomeAssistant_Full-01.svg` — byte-identical to the canonical supplied full logo
+- `Monita_HA_Icon-01.svg` — byte-identical to the canonical supplied icon
+- `monita-ha-logo.png` / `logo.png` — faithful full-logo raster aliases
+- `monita-ha-icon.png` / `icon.png` — faithful icon raster aliases
 
-## Active assets
-
-- `monita-ha-icon.png` — canonical Monita for Home Assistant integration icon
-- `monita-ha-logo.png` — canonical active logo asset
-- `icon.png` — Home Assistant/HACS compatibility alias
-- `logo.png` — Home Assistant/HACS compatibility alias
-
-The compatibility aliases are byte-identical to their Monita canonical counterparts.
-
-Legacy Gotify-MU artwork has been removed from the active tree. Git history preserves it for provenance.
-
-## Compatibility rule
-
-The visual/product identity is Monita. The Home Assistant technical domain remains `gotify_mu` in this release only to preserve existing config entries, service calls, entities, automations, and HACS upgrades.
-
-## Preservation rule
-
-Do not regenerate, redraw, recolor, reinterpret, or silently replace approved Monita artwork during ordinary feature, bug-fix, documentation, CI, packaging, or release work.
-
-Any future branding change must be explicit and must update `.github/branding-lock.json`.
-
-## CI enforcement
-
-`scripts/check_branding.py` verifies the approved asset hashes, dimensions, and compatibility aliases.
+Do not introduce separate compatibility artwork. The old technical domain exists only to preserve stored Home Assistant identities and automations.
