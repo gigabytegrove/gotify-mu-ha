@@ -65,14 +65,11 @@ Those references do not represent the active product name.
 
 ## Visual identity
 
-Approved palette:
+Authoritative artwork:
 
-- Primary: `#2563EB`
-- Blue: `#3B82F6`
-- Cyan: `#06B6D4`
-- Slate: `#0F172A`
-- Gray: `#9CA3B8`
+- `branding/MonitaHomeAssistant_Full-01.svg` — exact full logo supplied on 2026-10-01
+- `branding/Monita_HA_Icon-01.svg` — exact icon supplied on 2026-10-01
 
-The supplied Monita for Home Assistant brand sheet is the design authority. The artwork must not be redesigned, recolored, or regenerated as part of ordinary software work.
+These supplied SVG files are the design authority. The artwork must not be redesigned, recolored, or regenerated as part of ordinary software work.
 
-The active binary icon/logo/banner replacement and branding-lock update should use assets derived directly from the approved supplied artwork, not a newly interpreted design.
+Home Assistant/HACS PNG copies must be rendered directly from the supplied SVG masters and must never be manually redrawn, recolored, traced, simplified, cropped, stretched, or substituted.
