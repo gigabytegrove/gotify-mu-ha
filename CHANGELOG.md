@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.8.2 - 2026-10-01
+
+### Canonical branding refresh
+
+- Replaced the Home Assistant integration, HACS repository card, release package, documentation, canonical domain, and existing-install compatibility branding with raster copies rendered directly from the exact SVG masters supplied on 2026-10-01.
+- Added the supplied full Monita for Home Assistant logo and standalone Home Assistant icon as the canonical vector source files.
+- The canonical `monita` and compatibility `gotify_mu` component directories now receive byte-identical logo/icon aliases generated from the same masters.
+- Root-level HACS `logo.png` and `icon.png` are generated from the same approved artwork.
+- CI locks the supplied SVG masters by Git blob hash and verifies all generated compatibility aliases.
+
+### Compatibility
+
+- No configuration, entity, action, token, or automation migration is required from 1.8.1.
+- Existing `gotify_mu` installations remain supported while new integrations can use the canonical `monita` domain.
+
 ## 1.8.1 - 2026-10-01
 
 ### HACS branding
