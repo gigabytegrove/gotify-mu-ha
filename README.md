@@ -1,9 +1,7 @@
 # Monita for Home Assistant
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/gigabytegrove/monita-ha/main/custom_components/gotify_mu/brand/monita-ha-icon.png" alt="Monita for Home Assistant" width="220"><br>
-  <strong>Monita for Home Assistant</strong><br>
-  <em>formerly Gotify-MU for Home Assistant</em>
+  <img src="logo.svg" alt="Monita for Home Assistant" width="720">
 </p>
 
 
@@ -13,13 +11,13 @@ It provides native Home Assistant notification entities for Monita Channels, ima
 
 ## Current release
 
-**Monita for Home Assistant 1.8.1** is the current integration release documented by this repository.
+**Monita for Home Assistant 1.8.2** is the current integration release documented by this repository.
 
-It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.3.2**). Direct camera/image delivery into Notification and Chat Channels requires **Monita 1.1.9 or newer**; Monita 1.2.0+ adds per-message collaboration controls and the 24-hour Notification Channel retention policy.
+It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.3.3**). Direct camera/image delivery into Notification and Chat Channels requires **Monita 1.1.9 or newer**; Monita 1.2.0+ adds per-message collaboration controls and the 24-hour Notification Channel retention policy.
 
 Companion client:
 
-- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current testing release: **0.3.13**
+- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current testing release: **0.3.14**
 
 ## Documentation
 
