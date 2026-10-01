@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.1 - 2026-10-01
+
+### HACS branding
+- Added canonical root-level `logo.png` and `icon.png` assets so HACS can render Monita branding in the Downloaded repositories card.
+- Root HACS branding reuses the exact locked Monita integration artwork; no resampling or alternate logo was introduced.
+- HACS validation, hassfest, static checks, and integration tests remain required for the release.
+
+### Compatibility
+- No configuration or entity migration is required from 1.8.0.
+- Existing `gotify_mu` installations remain supported while new integrations can use the canonical `monita` domain.
+
 ## 1.8.0 - 2026-09-30
 
 ### Canonical Monita identity
