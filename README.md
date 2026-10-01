@@ -1,7 +1,7 @@
 # Monita for Home Assistant
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/gigabytegrove/monita-ha/main/custom_components/gotify_mu/brand/monita-ha-icon.png" alt="Monita for Home Assistant" width="220"><br>
+  <img src="branding/MonitaHomeAssistant_Full-01.svg" alt="Monita for Home Assistant" width="720"><br>
   <strong>Monita for Home Assistant</strong><br>
   <em>formerly Gotify-MU for Home Assistant</em>
 </p>
@@ -13,13 +13,13 @@ It provides native Home Assistant notification entities for Monita Channels, ima
 
 ## Current release
 
-**Monita for Home Assistant 1.8.1** is the current integration release documented by this repository.
+**Monita for Home Assistant 1.8.2** is the current integration release documented by this repository.
 
-It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.3.2**). Direct camera/image delivery into Notification and Chat Channels requires **Monita 1.1.9 or newer**; Monita 1.2.0+ adds per-message collaboration controls and the 24-hour Notification Channel retention policy.
+It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.3.3**). Direct camera/image delivery into Notification and Chat Channels requires **Monita 1.1.9 or newer**; Monita 1.2.0+ adds per-message collaboration controls and the 24-hour Notification Channel retention policy.
 
 Companion client:
 
-- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current testing release: **0.3.13**
+- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current testing release: **0.3.14**
 
 ## Documentation
 
@@ -392,14 +392,14 @@ MIT
 
 ## Branding
 
-**Monita for Home Assistant** is the active product identity. The supplied Monita brand sheet, logo treatment, app icon treatment, typography, and palette are the approved visual baseline for the rebrand.
+**Monita for Home Assistant** is the active product identity.
 
-Brand palette:
+The exact SVG files supplied on **2026-10-01** are the authoritative artwork:
 
-- Primary — `#2563EB`
-- Blue — `#3B82F6`
-- Cyan — `#06B6D4`
-- Slate — `#0F172A`
-- Gray — `#9CA3B8`
+- [`branding/MonitaHomeAssistant_Full-01.svg`](branding/MonitaHomeAssistant_Full-01.svg) — full Monita for Home Assistant logo
+- [`branding/Monita_HA_Icon-01.svg`](branding/Monita_HA_Icon-01.svg) — Monita for Home Assistant icon
 
-The active repository branding is Monita-only. The approved Monita artwork must not be regenerated, recolored, redrawn, or silently replaced during normal feature work. Branding changes require an explicit branding update and corresponding CI lock update.
+Home Assistant and HACS require PNGs on several surfaces, so those raster files are generated directly from the supplied SVG masters. No alternate palette, redraw, trace, simplification, recolor, crop, stretch, or silently regenerated substitute is authoritative.
+
+Branding changes require explicit replacement of the canonical SVG masters and a corresponding branding-lock update.
+
