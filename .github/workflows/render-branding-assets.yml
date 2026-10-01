@@ -1,0 +1,39 @@
+name: Render canonical branding assets
+
+on:
+  push:
+    branches:
+      - branding/canonical-2026-10-01
+    paths:
+      - custom_components/monita/brand/MonitaHomeAssistant_Full-01.svg
+      - custom_components/monita/brand/Monita_HA_Icon-01.svg
+      - scripts/render_branding.py
+      - .github/workflows/render-branding-assets.yml
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: branding/canonical-2026-10-01
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "cairosvg==2.7.1"
+      - run: python scripts/render_branding.py
+      - name: Commit faithful HACS/Home Assistant raster derivatives
+        run: |
+          set -euo pipefail
+          git add logo.png icon.png             custom_components/monita/brand/*.png             custom_components/gotify_mu/brand/*.png
+          if git diff --cached --quiet; then
+            echo "Home Assistant raster assets already match the supplied vectors."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Render Home Assistant branding from canonical SVGs"
+          git push origin HEAD:branding/canonical-2026-10-01
