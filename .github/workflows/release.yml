@@ -23,6 +23,15 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Render canonical branding
+        run: |
+          python -m pip install "CairoSVG==2.8.2"
+          python scripts/render_branding.py
+
       - name: Read integration version
         id: version
         shell: bash

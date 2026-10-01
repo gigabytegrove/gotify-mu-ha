@@ -30,6 +30,10 @@ jobs:
                   json.load(file)
               print(f"OK {path}")
           PY
+      - name: Render canonical branding
+        run: |
+          python -m pip install "CairoSVG==2.8.2"
+          python scripts/render_branding.py
       - name: Verify locked branding
         run: python scripts/check_branding.py
       - name: Verify feature documentation
