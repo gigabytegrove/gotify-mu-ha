@@ -19,7 +19,7 @@ It is designed for the current [Monita server](https://github.com/gigabytegrove/
 
 Companion client:
 
-- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current testing release: **0.3.14**
+- [Monita for Android](https://github.com/gigabytegrove/monita-android) — current testing release: **0.3.15**
 
 ## Documentation
 
