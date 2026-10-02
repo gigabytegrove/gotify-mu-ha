@@ -1,12 +1,19 @@
 # Monita for Home Assistant branding
 
-This compatibility component uses the same current Monita for Home Assistant artwork as the canonical `monita` integration.
+The supplied SVG files are the authoritative visual source for Monita for Home Assistant.
 
-The authoritative SVG masters are stored at the repository root under `branding/`:
+## Canonical masters
 
-- `branding/MonitaHomeAssistant_Full-01.svg`
-- `branding/Monita_HA_Icon-01.svg`
+- `branding/MonitaHomeAssistant_Full-01.svg` — full Monita for Home Assistant logo
+- `branding/Monita_HA_Icon-01.svg` — Monita for Home Assistant icon
 
-The PNG files in this directory are byte-identical compatibility copies rendered from those supplied masters. The historical `gotify_mu` technical path remains only so existing Home Assistant installations continue to load without breaking.
+The artwork is used exactly as supplied. It must not be redrawn, recolored, cropped, have its canvas background removed, have its proportions changed, be traced, simplified, or otherwise reinterpreted.
 
-Do not redraw, recolor, crop, stretch, trace, simplify, substitute, or manually recreate the artwork.
+## Home Assistant / HACS raster copies
+
+Home Assistant and HACS surfaces require PNG assets. `scripts/render_branding.py` renders those PNGs directly from the supplied SVG masters at the required pixel dimensions.
+
+- `monita-ha-icon.png` / `icon.png` — direct render of the supplied HA icon
+- `monita-ha-logo.png` / `logo.png` — direct render of the supplied full HA logo
+
+The historical `gotify_mu` component keeps byte-identical branding aliases only for existing-install compatibility. It does not use separate artwork.
