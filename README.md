@@ -27,7 +27,7 @@ Companion client:
 - **[Changelog](CHANGELOG.md)** — version-by-version changes and compatibility notes.
 - **[Monita Rebrand & Upgrade Guide](docs/REBRANDING.md)** — explains the Gotify-MU → Monita transition and which technical identifiers intentionally remain unchanged.
 
-The README covers installation and the most common workflows. The complete guide is the canonical reference for all supported functionality. The SVG files under `branding/` are the authoritative Monita for Home Assistant artwork.
+The README covers installation and the most common workflows. The complete guide is the canonical reference for all supported functionality. The SVG files under `branding/` are the authoritative Monita for Home Assistant artwork. Required PNG copies are direct raster renders of those SVG masters.
 
 ## Features
 
