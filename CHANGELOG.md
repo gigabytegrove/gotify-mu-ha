@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.5 — 2026-10-02
+
+### Transparent icon correction
+
+- Restored the transparent Monita for Home Assistant icon requested for all icon surfaces.
+- Removed only the 512×512 gray canvas/background rectangle from the canonical HA icon SVG; all other artwork remains unchanged.
+- HACS root branding plus canonical `monita` and compatibility `gotify_mu` icon aliases are regenerated from the same transparent master.
+- Full Monita for Home Assistant logo artwork is unchanged.
+
+### Compatibility
+
+- No configuration, entity, action, token, or automation migration is required.
+- Existing installations update in place.
+
 ## 1.8.4 — 2026-10-02
 
 ### Authoritative supplied branding

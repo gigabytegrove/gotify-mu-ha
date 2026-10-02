@@ -13,7 +13,7 @@ It provides native Home Assistant notification entities for Monita Channels, ima
 
 ## Current release
 
-**Monita for Home Assistant 1.8.4** is the current integration release documented by this repository.
+**Monita for Home Assistant 1.8.5** is the current integration release documented by this repository.
 
 It is designed for the current [Monita server](https://github.com/gigabytegrove/monita) release (**1.3.5**). Direct camera/image delivery into Notification and Chat Channels requires **Monita 1.1.9 or newer**; Monita 1.2.0+ adds per-message collaboration controls and the 24-hour Notification Channel retention policy.
 
