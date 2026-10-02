@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - branding/canonical-2026-10
     paths:
       - branding/MonitaHomeAssistant_Full-01.svg
       - branding/Monita_HA_Icon-01.svg
       - scripts/render_branding.py
+      - .github/workflows/sync-branding.yml
 
 permissions:
   contents: write
@@ -17,11 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - name: Install deterministic SVG renderer
         run: python -m pip install "CairoSVG==2.8.2"
+      - name: Refresh branch head
+        run: git pull --ff-only origin "${GITHUB_REF_NAME}"
       - name: Render supplied artwork
         run: python scripts/render_branding.py
       - name: Commit raster copies

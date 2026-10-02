@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.8.4 — 2026-10-02
+
+### Authoritative supplied branding
+
+- Restored the full Monita for Home Assistant logo and icon directly from the supplied SVG masters.
+- The icon canvas/background is preserved exactly as supplied; the branding renderer no longer removes or alters it.
+- HACS root branding, the canonical `monita` component, and the existing-install `gotify_mu` compatibility component all use raster copies generated from those same supplied masters.
+- Root `icon.png` is the supplied HA icon and root `logo.png` is the supplied full HA logo.
+- GitHub documentation uses the supplied vector full logo directly for crisp rendering.
+- No redraw, recolor, crop, trace, simplification, background removal, or geometry change is performed.
+
+### Compatibility
+
+- No configuration, entity, action, token, or automation migration is required.
+- Existing `monita` and compatibility `gotify_mu` installations update in place.
+
 ## 1.8.3 — 2026-10-01
 
 ### Transparent icon background
