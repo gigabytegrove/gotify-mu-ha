@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - branding/canonical-2026-10
     paths:
       - branding/MonitaHomeAssistant_Full-01.svg
       - branding/Monita_HA_Icon-01.svg
